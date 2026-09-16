@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>竞争风险下的置信区间：CIF 与 Kaplan–Meier 的统计分析与实现规范</title>
+<style>
+  :root{
+    --bg:#F5F4F0;          /* 页面底：中性浅灰米白（参照示例样式） */
+    --panel:#FFFFFF;       /* 正文面板 */
+    --side:#FAF9F6;        /* 左侧目录 */
+    --ink:#1F1D1A;
+    --ink2:#4F4C46;
+    --ink3:#8B877F;
+    --line:#E7E4DC;
+    --line2:#D7D3C8;
+    --blue:#2E4E8F;        /* 医学蓝 */
+    --purple:#5B4C9A;      /* 医学紫 */
+    --accent:#7C6BD6;
+    --hl:#FFF1B8;          /* 高亮 */
+    --hl2:#EBE6FA;
+    --code:#F7F5EF;
+    --warnbg:#FDF3E7;
+    --warnline:#E0A85C;
+    --okbg:#EEF4EF;
+    --okline:#6E9C7C;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --top:56px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15.6px;line-height:1.85;
+  }
+  /* ---------- 顶栏 ---------- */
+  .topbar{position:sticky;top:0;z-index:60;height:var(--top);background:#fff;border-bottom:1px solid var(--line)}
+  .topbar-in{max-width:1360px;margin:0 auto;height:100%;display:flex;align-items:center;
+    justify-content:space-between;gap:16px;padding:0 20px}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);border:0}
+  .brand .mark{width:30px;height:30px;border-radius:7px;background:#1F1D1A;color:#fff;flex:none;
+    display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+    font-size:12.5px;font-weight:700;letter-spacing:.02em}
+  .brand .bt{display:flex;flex-direction:column;line-height:1.22}
+  .brand .bt b{font-size:14px;font-weight:700}
+  .brand .bt i{font-style:normal;font-size:11.5px;color:var(--ink3)}
+  .topnav{display:flex;align-items:center;gap:4px}
+  .topnav a,.topnav button{font:inherit;font-size:13px;color:var(--ink2);background:none;border:0;
+    border-radius:6px;padding:6px 10px;cursor:pointer;text-decoration:none;white-space:nowrap}
+  .topnav a:hover,.topnav button:hover{background:#F1EFE9;color:var(--ink)}
+  #menubtn{display:none}
+  /* ---------- 三栏骨架 ---------- */
+  .shell{max-width:1360px;margin:0 auto;display:grid;align-items:start;
+    grid-template-columns:262px minmax(0,1fr) 232px}
+  .side{position:sticky;top:var(--top);height:calc(100vh - var(--top));
+    background:var(--side);border-right:1px solid var(--line);overflow-y:auto}
+  .side-in{padding:14px 12px 40px}
+  .back{display:block;font-size:13px;color:var(--ink2);text-decoration:none;
+    padding:6px 10px;border-radius:6px;border:0}
+  .back:hover{background:#EFEDE7}
+  .side-h,.rail-h{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink3);font-weight:700;padding:16px 10px 6px}
+  .toc{display:flex;flex-direction:column}
+  .toc a{display:block;text-decoration:none;border:0;color:var(--ink2);font-size:13.4px;
+    line-height:1.5;padding:6px 10px;border-radius:6px}
+  .toc a:hover{background:#EFEDE7;color:var(--ink)}
+  .toc a.on{background:#E9E7E0;color:var(--ink);font-weight:650}
+  .toc .lv1 i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--accent);
+    font-weight:700;margin-right:7px}
+  .toc .lv2{font-size:12.5px;color:var(--ink3);padding:5px 10px 5px 13px;
+    border-left:2px solid transparent;border-radius:0 6px 6px 0}
+  .toc .lv2.on{color:var(--purple);font-weight:650;border-left-color:var(--accent);background:#F1EFF9}
+  .rail{position:sticky;top:var(--top);height:calc(100vh - var(--top));overflow-y:auto}
+  .rail-in{padding:14px 8px 40px 0}
+  /* ---------- 正文 ---------- */
+  .main{background:var(--panel);border-right:1px solid var(--line);padding:26px 46px 110px;min-width:0}
+  .main h2,.main h3,.main h4{scroll-margin-top:calc(var(--top) + 14px)}
+  .crumb{font-size:12.5px;color:var(--ink3);letter-spacing:.02em}
+  header{border-bottom:1px solid var(--line2);padding-bottom:24px;margin:18px 0 34px}
+  .kicker{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--purple);
+    font-weight:600;margin-bottom:12px}
+  h1{font-family:Georgia,"Songti SC","Source Han Serif SC",serif;font-size:30px;line-height:1.36;
+    margin:0 0 14px;font-weight:700;letter-spacing:-.1px}
+  .sub{color:var(--ink2);font-size:16px;margin:0 0 20px;max-width:780px}
+  .meta{font-size:13px;color:var(--ink3);line-height:2}
+  .meta b{color:var(--ink2);font-weight:600}
+  h2{font-family:Georgia,"Songti SC",serif;font-size:21.5px;margin:54px 0 6px;font-weight:700;
+    letter-spacing:-.1px;padding-top:12px;border-top:1px solid var(--line)}
+  h2 .n{color:var(--accent);font-size:15px;font-weight:700;margin-right:10px;font-family:var(--mono)}
+  h3{font-size:17px;margin:32px 0 4px;font-weight:650;color:var(--blue)}
+  h4{font-size:15.2px;margin:22px 0 2px;font-weight:650;color:var(--purple)}
+  h2 + .lead, h3 + .lead{margin-top:6px}
+  p{margin:12px 0}
+  ul,ol{margin:12px 0 12px 4px;padding-left:22px}
+  li{margin:6px 0}
+  a{color:var(--blue);text-decoration:none;border-bottom:1px solid rgba(46,78,143,.3);word-break:break-word}
+  a:hover{border-bottom-color:var(--blue)}
+  sup.r{color:var(--purple);font-weight:700;font-size:11px;padding-left:1px;font-family:var(--mono)}
+  mark{background:var(--hl);padding:1px 4px;border-radius:2px;font-weight:600}
+  .hl2{background:var(--hl2);padding:1px 4px;border-radius:2px}
+  code{font-family:var(--mono);font-size:13.2px;background:var(--hl2);padding:1px 5px;border-radius:3px}
+  /* 卡片 / 提示 */
+  .abs{background:#FCFBF7;border:1px solid var(--line);border-radius:10px;padding:24px 26px;margin:24px 0 8px}
+  .abs h3{margin:0 0 8px;color:var(--purple);font-size:14.5px;letter-spacing:.04em;
+    text-transform:uppercase;font-weight:700}
+  .abs p{margin:9px 0;font-size:15.2px}
+  .key{background:linear-gradient(90deg,var(--hl) 0,var(--hl) 3px,#fff 3px);
+    border:1px solid var(--line);border-left:3px solid #E2B93B;border-radius:0 8px 8px 0;
+    padding:16px 20px;margin:22px 0;font-size:15px}
+  .key b{color:#8A6A12}
+  .warn{border-left:3px solid var(--warnline);background:var(--warnbg);border-radius:0 8px 8px 0;
+    padding:15px 20px;margin:20px 0;font-size:14.8px}
+  .ok{border-left:3px solid var(--okline);background:var(--okbg);border-radius:0 8px 8px 0;
+    padding:15px 20px;margin:20px 0;font-size:14.8px}
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;margin:22px 0;font-size:14px;background:#fff}
+  caption{caption-side:top;text-align:left;font-size:13.2px;color:var(--ink2);padding:0 0 8px}
+  caption b{color:var(--purple)}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top;line-height:1.62}
+  thead th{background:#F1EDF9;font-weight:650;color:#3A3363;font-size:13.4px}
+  tbody tr:nth-child(even){background:#FCFBF7}
+  td code,th code{background:transparent;padding:0;font-size:12.8px}
+  .tw{font-family:var(--mono);font-size:12.8px;white-space:nowrap}
+  /* 代码 */
+  pre{background:var(--code);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0;padding:16px 18px;overflow-x:auto;margin:16px 0 22px;
+    font-family:var(--mono);font-size:12.7px;line-height:1.72;color:#2B2620;tab-size:4}
+  pre code{background:none;padding:0;font-size:inherit}
+  .codelabel{font-family:var(--mono);font-size:12.3px;color:var(--purple);font-weight:600;
+    margin:26px 0 -8px;letter-spacing:.02em}
+  /* 图 */
+  figure{margin:26px 0;background:#FCFBF7;border:1px solid var(--line);border-radius:10px;padding:20px}
+  figure svg{display:block;width:100%;height:auto}
+  figcaption{font-size:13.2px;color:var(--ink2);margin-top:14px;line-height:1.7}
+  figcaption b{color:var(--purple)}
+  /* 参考文献 */
+  ol.refs{list-style:none;padding-left:0;counter-reset:rf;font-size:14.1px}
+  ol.refs li{counter-increment:rf;position:relative;padding-left:40px;margin:11px 0;
+    line-height:1.7;color:var(--ink2)}
+  ol.refs li::before{content:counter(rf);position:absolute;left:0;top:1px;width:26px;text-align:right;
+    font-family:var(--mono);font-size:12.2px;color:var(--purple);font-weight:700}
+  ol.refs li em{font-style:italic;color:var(--ink)}
+  ol.refs li.refgrp{counter-increment:none;padding-left:0;font-size:13.4px;font-weight:700;
+    color:var(--blue);margin:26px 0 2px;padding-top:12px;border-top:1px dashed var(--line2)}
+  ol.refs li.refgrp:first-child{border-top:0;padding-top:0;margin-top:8px}
+  ol.refs li.refgrp::before{content:none}
+  hr{border:0;border-top:1px solid var(--line);margin:46px 0}
+  .foot{font-size:12.8px;color:var(--ink3);border-top:1px solid var(--line2);padding-top:20px;margin-top:52px}
+  @media print{
+    .topbar,.side,.rail{display:none}
+    .shell{display:block;max-width:none}
+    .main{border:0;padding:0}
+    body{background:#fff;font-size:11pt}
+    h2{page-break-after:avoid}
+    pre,figure,table{page-break-inside:avoid}
+  }
+  @media (max-width:1180px){
+    .shell{grid-template-columns:246px minmax(0,1fr)}
+    .rail{display:none}
+  }
+  @media (max-width:860px){
+    .shell{grid-template-columns:minmax(0,1fr)}
+    #menubtn{display:inline-block}
+    .side{position:fixed;left:0;top:var(--top);bottom:0;width:268px;height:auto;z-index:55;
+      transform:translateX(-101%);transition:transform .18s ease;
+      box-shadow:0 12px 40px rgba(0,0,0,0)}
+    .side.open{transform:none;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+    .main{padding:22px 18px 80px;border-right:0}
+    h1{font-size:23px}
+    body{font-size:15.2px}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#top">
+      <span class="mark">CI</span>
+      <span class="bt"><b>CIF &times; Kaplan&ndash;Meier</b><i>置信区间实现规范 &middot; SAP 5.10.1</i></span>
+    </a>
+    <nav class="topnav">
+      <button id="menubtn" type="button">目录</button>
+      <a href="#sec-refs">参考文献</a>
+      <a href="https://support.sas.com/documentation/onlinedoc/stat/152/lifetest.pdf" target="_blank" rel="noopener">SAS/STAT 15.2 &#8599;</a>
+      <button id="printbtn" type="button">打印 / PDF</button>
+    </nav>
+  </div>
+</header>
+
+<div class="shell" id="top">
+
+  <aside class="side" id="side">
+    <div class="side-in">
+      <a class="back" href="#top">&larr; 返回顶部</a>
+      <div class="side-h">目录</div>
+      <nav class="toc" id="toc-side"></nav>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="crumb">CIF &times; KM &nbsp;/&nbsp; SAP 第 5.10.1 节 &nbsp;/&nbsp; 技术说明</div>
+
+<header>
+  <div class="kicker">Statistical Analysis Note · Competing Risks</div>
+  <h1>竞争风险下的置信区间：CIF 与 Kaplan–Meier 的统计分析与实现规范</h1>
+  <p class="sub">针对 XXX Registry 研究 SAP 第 5.10.1 节「继发终点分析」中转移发生时间的分析，逐处说明 TFL Shell 所要求的 95% 置信区间（CI）应当如何计算，并补齐 SAP 在累积发生率函数（CIF）分支上尚未规定的 CI 方法。</p>
+  <div class="meta">
+    <b>适用版本</b>　SAP Final v1.1（01 Sep 2026）第 5.10.1 节；TFL Shell 表 14.2.1.2、14.2.1.3、14.2.2.1 及图 14.2.1.1、14.2.1.2、14.2.2.1<br>
+    <b>软件前提</b>　<b>SAS 9.4M7（TS1M7）</b>，随附 <b>SAS/STAT 15.2</b><sup class="r">8</sup>。竞争风险功能（<code>OUTCIF=</code>、<code>ERROR=</code>、<code>EVENTCODE=</code>）自 SAS/STAT 14.1 起即受支持，故本项目版本可用；文中选项取值、默认值与数据集列名均按 15.2 口径核对，详见第 8 节<br>
+    <b>文档性质</b>　方法学说明 + 可直接落地的统计分析代码；不含报表宏与输出层逻辑<br>
+    <b>日期</b>　2026-09-16
+  </div>
+</header>
+
+<div class="abs">
+  <h3>Abstract</h3>
+  <p>转移发生时间在存在「转移前死亡」时是竞争风险终点。本研究的主要分析采用累积发生率函数，支持性分析采用 Kaplan–Meier，两者输出同一批分位数与年度累积概率，因而在 Shell 中出现 8 处需要 95% CI 的位置。<mark>两种方法对死亡的处理不同，导致其 CI 在统计含义、方差来源与构造机制上都不相同（需先澄清：两者的<b>风险集是同一个</b>，差异只在分子的处置，见 2.1 节）</mark>：Kaplan–Meier 以 Greenwood 方差配合对数—对数变换给出曲线上的逐点 CI，并以 Brookmeyer–Crowley 反演给出分位数 CI；累积发生率函数则以 Aalen 计数过程方差（默认）或 delta 法方差配合同一个变换参数给出逐点 CI，而<mark>其分位数的 CI 在 SAS 中没有任何现成输出</mark>。</p>
+  <p>本文件梳理了两种方法在估计目标与方差结构上的差异，建立了 Shell 中每一处 CI 与 SAS 语句选项之间的逐一对应，说明了 <code>METHOD=</code>、<code>CONFTYPE=</code>、<code>ERROR=</code>、<code>NELSON</code>、<code>CONFBAND=</code>、<code>ALPHA=</code>、<code>ALPHAQT=</code> 各选项的确切含义与默认值（并指出一个常见误解：<code>NELSON</code> 并非 <code>METHOD=</code> 的取值，而是语句上的独立选项，见 4.1 节），并给出把逐点 CI 反演为分位数 CI 的实现路径，同时说明该反演在累积发生率函数尚未达到目标水平时必然返回「不可估」的判据。文末给出只含统计分析部分的 SAS 参考代码、版本对齐说明与 31 条文献。</p>
+</div>
+
+<div class="key">
+  <b>版本与口径前提（详见第 8 节）。</b>本项目基准环境为 <b>SAS 9.4M7（TS1M7）</b>，随附 <b>SAS/STAT 15.2</b>。本文件涉及的竞争风险功能（<code>OUTCIF=</code>、<code>ERROR=</code>、<code>EVENTCODE=</code>、<code>PLOTS=CIF</code>）自 SAS/STAT 14.1 起即受支持，该版本完全可用；所有选项取值、默认值与数据集列名均按 15.2 口径逐条核对。<mark>若发现本机行为与文中不同，先跑 <code>proc product_status</code> 确认 <code>Statistical Procedures</code> 的版本号，再回查第 8 节。</mark>
+</div>
+
+<h2><span class="n">1</span>问题界定：SAP 与 Shell 到底要求了什么</h2>
+
+<p class="lead">SAP 第 5.10.1 节把转移发生时间的分析拆成主分析与支持性分析两条线，并明确规定了两条线各自的估计量。主分析写道，Cumulative Incidence Function 用于估计转移发生时间及各时间点的累积发生率，且<mark>「death prior to the development of metastatic disease treated as a competing risk」</mark>；未发生转移且未死亡者，在末次转移评估日删失。该段随后要求「25th percentile, median and 75th percentile of the time to occurrence of metastatic disease (years) along with 2-sided 95% confidence intervals (CIs) will be provided」，并要求 1、2、3、4、5 年的累积发生率「along with 2-sided 95% CIs」。支持性分析则写得明确得多：分位数使用 <em>Brookmeyer–Crowley method with log-log transformation</em>，年度无病率使用 <em>Greenwood method with log-log transformation</em>。</p>
+
+<p>把这两段并置起来，最关键的缺口就出现了：<mark>支持性分析（Kaplan–Meier 分支）写明了两处 CI 的构造方法，而主分析（CIF 分支）只写了「要输出 95% CI」，没有写这些 CI 用什么方差、施加什么变换</mark>。Shell 层面同样没有补上：表 14.2.1.2 的脚注只定义了时间变量的口径，没有 CI 方法的脚注；表 14.2.1.3 的三个分位数单元格则带脚注 [2]，明确写着「95% CI is computed using the Brookmeyer–Crowley method」。也就是说，<span class="hl2">同一个 Shell 文件里的两张表，一张有 CI 方法、一张没有</span>。这不是排版疏漏，而是一个必须在编程前用方法学决定填补的空白，因为它直接决定 8 处 CI 的数值。</p>
+
+<table>
+  <caption><b>表 1</b>　Shell 中所有需要 95% CI 的输出位置（共 8 处指标 × 每个分组列），及其在 SAP 中的方法规定状态。</caption>
+  <thead>
+    <tr><th style="width:12%">Shell</th><th style="width:30%">输出位置</th><th style="width:29%">SAP 是否规定 CI 方法</th><th style="width:29%">本文件给出的实现</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="tw">表 14.2.1.2<br>（CIF）</td>
+      <td>25th Percentile (95% CI)<br>Median (95% CI)<br>75th Percentile (95% CI)</td>
+      <td><b>未规定</b>。SAP 仅要求「along with 2-sided 95% CIs will be provided」</td>
+      <td>由 <code>OUTCIF=</code> 的 <code>CIF_LCL</code>/<code>CIF_UCL</code> 反演（Brookmeyer–Crowley 型），第 3.2 节</td>
+    </tr>
+    <tr>
+      <td class="tw">表 14.2.1.2<br>（CIF）</td>
+      <td>Cumulative Incidence (95% CI) (%)：1–5 年</td>
+      <td><b>未规定</b>。同上一处</td>
+      <td><code>OUTCIF=</code> 在 <code>TIMELIST=</code> 时间点的 <code>CIF</code>/<code>CIF_STDERR</code>/<code>CIF_LCL</code>/<code>CIF_UCL</code></td>
+    </tr>
+    <tr>
+      <td class="tw">表 14.2.1.3<br>（KM）</td>
+      <td>25th / Median / 75th Percentile (95% CI)</td>
+      <td><b>已规定</b>：Brookmeyer–Crowley + log-log transformation</td>
+      <td><code>CONFTYPE=LOGLOG</code>（默认）下的 <code>Quartiles</code> 表；或第 3.2 节反演交叉核对</td>
+    </tr>
+    <tr>
+      <td class="tw">表 14.2.1.3<br>（KM）</td>
+      <td>KM-Estimated Disease Free Rate (95% CI) (%)：1–5 年</td>
+      <td><b>已规定</b>：Greenwood method + log-log transformation</td>
+      <td><code>OUTSURV=</code> 的 <code>SURVIVAL</code>/<code>SDF_LCL</code>/<code>SDF_UCL</code>（<code>METHOD=KM</code> 的默认方差即 Greenwood）</td>
+    </tr>
+    <tr>
+      <td class="tw">表 14.2.2.1<br>（OS）</td>
+      <td>25th / Median / 75th Percentile (95% CI)</td>
+      <td><b>已规定</b>：同上（SAP 引用 5.10.1 的定义）</td>
+      <td>同表 14.2.1.3 的分位数路径</td>
+    </tr>
+    <tr>
+      <td class="tw">表 14.2.2.1<br>（OS）</td>
+      <td>KM-Estimated Survival Rate (95% CI) (%)：1–5 年</td>
+      <td><b>已规定</b>：同上</td>
+      <td>同表 14.2.1.3 的年度率路径</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="key">
+  <b>一句话结论。</b>Shell 要求输出的 CI 分为两类推断对象：<b>曲线上某一时间点的估计值</b>（1–5 年概率）与<b>估计值首次达到某个水平的时间点</b>（25/50/75 分位数）。前者由「方差 + 变换」直接给出，后者由前者的置信限<b>反演</b>得到。CIF 分支在前者上只差方法声明（SAS 默认可用），在后者上则完全没有现成输出，必须自行实现。
+</div>
+
+<h2><span class="n">2</span>为什么 CIF 与 KM 的 CI 不能互换</h2>
+
+<p class="lead">两种方法的差异不在估计公式的写法，而在对「转移前死亡」这一观测的处置。理解这一点之后，后续所有 CI 的差异都可以从中推导出来，而不必逐条记忆。</p>
+
+<figure>
+<svg viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kaplan-Meier 与 CIF 风险集相同、分子处置不同的示意">
+  <rect x="0" y="0" width="680" height="330" fill="#FFFFFF"/>
+
+  <rect x="20" y="14" width="640" height="56" rx="8" fill="#F1EDF9" stroke="#D9D0BE"/>
+  <text x="36" y="36" font-family="sans-serif" font-size="12.6" font-weight="700" fill="#3A3363">分母（风险集）只有一份，两条线共用</text>
+  <text x="36" y="58" font-family="sans-serif" font-size="11.8" fill="#564F46">Y(t) = 在 t 时刻仍在随访、且此前未发生任何事件的受试者</text>
+  <text x="476" y="50" font-family="monospace" font-size="11.6" fill="#2E4E8F">死亡者：死亡前计入，其后退出</text>
+
+  <text x="24" y="102" font-family="Georgia,serif" font-size="14" font-weight="700" fill="#2E4E8F">Kaplan–Meier（支持性）</text>
+  <text x="24" y="121" font-family="sans-serif" font-size="11.6" fill="#8A8277">转移前死亡 = 删失，不进分子</text>
+  <line x1="34" y1="156" x2="330" y2="156" stroke="#D9D0BE" stroke-width="1.2"/>
+  <path d="M34 156 L262 156" stroke="#2E4E8F" stroke-width="2.4" fill="none"/>
+  <circle cx="262" cy="156" r="4.6" fill="#2E4E8F"/>
+  <text x="270" y="160" font-family="monospace" font-size="10.8" fill="#2E4E8F">转移</text>
+  <path d="M150 156 L150 138" stroke="#C4623A" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <circle cx="150" cy="156" r="4" fill="#FFFFFF" stroke="#C4623A" stroke-width="1.8"/>
+  <text x="94" y="132" font-family="monospace" font-size="10.8" fill="#C4623A">死亡 → 删失</text>
+  <path d="M218 156 L218 138" stroke="#8A8277" stroke-width="1.4" stroke-dasharray="3 3"/>
+  <circle cx="218" cy="156" r="4" fill="#FFFFFF" stroke="#8A8277" stroke-width="1.6"/>
+  <text x="200" y="132" font-family="monospace" font-size="10.8" fill="#8A8277">删失</text>
+  <text x="24" y="180" font-family="sans-serif" font-size="11.8" fill="#564F46">分母不变；死亡者未被观测到的</text>
+  <text x="24" y="198" font-family="sans-serif" font-size="11.8" fill="#564F46">后续风险被隐含分摊，1 − Ŝ(t) 偏大</text>
+
+  <text x="352" y="102" font-family="Georgia,serif" font-size="14" font-weight="700" fill="#5B4C9A">CIF（主要分析）</text>
+  <text x="352" y="121" font-family="sans-serif" font-size="11.6" fill="#8A8277">转移前死亡 = 竞争事件，单独进分子</text>
+  <line x1="362" y1="156" x2="658" y2="156" stroke="#D9D0BE" stroke-width="1.2"/>
+  <path d="M362 156 L500 156" stroke="#5B4C9A" stroke-width="2.4" fill="none"/>
+  <circle cx="500" cy="156" r="4.6" fill="#5B4C9A"/>
+  <text x="508" y="160" font-family="monospace" font-size="10.8" fill="#5B4C9A">转移</text>
+  <path d="M428 156 L452 138" stroke="#C4623A" stroke-width="1.8"/>
+  <circle cx="428" cy="156" r="4" fill="#FFFFFF" stroke="#C4623A" stroke-width="1.8"/>
+  <circle cx="452" cy="138" r="4.4" fill="#C4623A"/>
+  <text x="394" y="132" font-family="monospace" font-size="10.8" fill="#C4623A">竞争终点</text>
+  <path d="M590 156 L590 138" stroke="#8A8277" stroke-width="1.4" stroke-dasharray="3 3"/>
+  <circle cx="590" cy="156" r="4" fill="#FFFFFF" stroke="#8A8277" stroke-width="1.6"/>
+  <text x="572" y="132" font-family="monospace" font-size="10.8" fill="#8A8277">删失</text>
+  <text x="352" y="180" font-family="sans-serif" font-size="11.8" fill="#564F46">分母不变；死亡显式占掉一部分</text>
+  <text x="352" y="198" font-family="sans-serif" font-size="11.8" fill="#564F46">概率质量，F̂₁ 的平台值可小于 1</text>
+
+  <line x1="20" y1="216" x2="660" y2="216" stroke="#E7E0D3"/>
+
+  <g font-family="monospace" font-size="12.6" fill="#3A3363">
+    <rect x="20" y="234" width="640" height="76" rx="8" fill="#F1EDF9" stroke="#D9D0BE"/>
+    <text x="38" y="258">恒等式（同一次分析即成立）：</text>
+    <text x="38" y="282" font-size="13.6" fill="#2E4E8F">1 − Ŝ(t) = F̂₁(t) + F̂₂(t)</text>
+    <text x="38" y="302" font-size="11.6" fill="#564F46">⇒ KM 对转移风险的高估量，恰好等于竞争事件的累积发生率 F̂₂(t)</text>
+  </g>
+</svg>
+<figcaption><b>图 1</b>　左右两侧的分母是同一个风险集 <code>Y(t)</code>，包括那些<b>此后将死于转移之外原因</b>的受试者（在他们各自的死亡时点之前）。两条线的差异全在分子：同一份失败数据，KM 只记一个全因 <code>ΔN(u)</code>（死亡被当作删失），CIF 则把它拆成 <code>ΔN₁(u)</code> 与 <code>ΔN₂(u)</code>。下方恒等式可直接用于 QC：在任何时间点上，<code>1 − SURVIVAL</code> 应当等于该组 <code>CIF</code> 与该组死亡的累积发生率之和。</figcaption>
+</figure>
+
+<h3>2.1 风险集的口径：谁在分母里，谁不在</h3>
+
+<p>在讨论「死亡是否计入分母」之前，必须先固定风险集的定义。定义一旦固定，两条线的分母是否相同就不再是需要争论的问题——<mark>它们用的是同一个风险集</mark>。这是本文件后续所有结论的地基，因此单独说明。</p>
+
+<p>记 <code>Y(t)</code> 为时点 <code>t</code> 处的风险集人数，它由<b>在 <code>t</code> 时刻仍在随访、且此前未发生任何事件</b>的受试者构成。这里「事件」不区分类型：转移、转移前死亡、以及任何已定义的终点，只要发生过，受试者在事件时点之后即退出风险集；删失同理，受试者在自己的删失时点仍留在集合内，此后退出。Wolbers 等在其图注中把这个集合写得非常直白：「the number of subjects who are still at risk, i.e. <em>under follow-up and free of any event</em>, at each time point」<sup class="r">12</sup>。</p>
+
+<div class="key">
+  <b>死亡参与者是否计入分母？</b>必须分两段回答，合在一起说就会出错：<br>
+  ① <b>在其死亡时点之前的每一个事件时间点上，计入。</b>那些时点上他尚未发生任何事件（既未转移、也未死亡），仍在随访中，也确有发生转移的风险，完全符合风险集的定义。<br>
+  ② <b>在其死亡时点及其之后，不计入。</b>此时他已发生竞争事件，不再处于「有风险」的状态。<br>
+  一句话概括：<mark>死亡者不是在入组时就被排除在分母之外，而是在自己的死亡时点退出分母</mark>。「CIF 只统计活着的人」是一种常见的误读。
+</div>
+
+<h4>为什么不能用「最终结局」筛分母</h4>
+
+<p>第 ② 条容易被反向理解：既然这些人最终会死于转移之外的原因，为什么不干脆把他们从分母里整批剔除？三条理由，任何一条都足以否掉这个做法。</p>
+
+<ul>
+  <li><b>可预测性。</b>计数过程理论要求风险集在时点 <code>t</code> 处仅由 <code>t</code> 之前已观测到的信息决定，即必须是可预测的（predictable）。「此人最终会死于其他原因」在 <code>t</code> 时刻属于未来信息；一旦用它筛分母，估计量的概率含义就不再是「真实世界的累积发生率」。</li>
+  <li><b>目标量会被换掉。</b>整批剔除会使分母被系统性削小，算出来的不再是 <code>P(T ≤ t, 原因 = 1)</code> 的 Aalen–Johansen 估计，而是一个条件于未来的量。它既没有对应的临床问题，也无法在 SAP 中定义清楚。</li>
+  <li><b>恒等式会破。</b>只有两个累积发生率共用同一个全因风险集时，才有 <code>1 − Ŝ(t) = F̂₁(t) + F̂₂(t)</code>。换了分母，第 2.2 节那条最省事的 QC 判据立刻失效。</li>
+</ul>
+
+<h4>KM 与 CIF 的分母完全相同</h4>
+
+<p>这是本节最需要记住的一句。<b>SAS 官方文档在 CIF 的估计式里只定义了一个风险集：</b>设 <code>t₁ &lt; … &lt; t<sub>L</sub></code> 为不同的未删失时间，对每个 <code>l</code> 令 <code>Y<sub>l</sub></code> 为「the number of subjects at risk at <code>t<sub>l</sub></code>」，令 <code>d<sub>jl</sub></code> 为 <code>t<sub>l</sub></code> 处原因 <code>j</code> 的失败数；而估计式中出现的生存函数被明确定义为「<b>the Kaplan-Meier estimator that would have been obtained by assuming that all failure causes are of the same type</b>」<sup class="r">4</sup>——正是 KM 分支所用的、把所有原因合并后的那一条 KM。<mark>同一个 <code>Y<sub>l</sub></code>、同一条全因 KM，唯一的差别在分子怎么记。</mark></p>
+
+<table>
+  <caption><b>表 2</b>　同一批数据、同一个风险集，两条分支在分子上的处置差异。分母一栏能跳行合并，正是因为两行共用同一个 <code>Y(t)</code>。</caption>
+  <thead>
+    <tr><th style="width:14%">分支</th><th style="width:25%">风险集 <code>Y(t)</code>（分母）</th><th style="width:30%">转移事件（<code>cnsrscd=1</code>）</th><th style="width:31%">转移前死亡（<code>cnsrscd=2</code>）</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>KM（支持性）</td>
+      <td rowspan="2" style="vertical-align:middle"><b>同一个集合：</b><code>t</code> 时刻仍在随访且未发生任何事件者。<br><br>包括<b>此后将死于其他原因</b>的受试者——在他们各自的死亡时点之前。<br><br>QC 抓手：该计数等于「观察时间 ≥ <code>t</code>」的人数</td>
+      <td>进入全因失败数 <code>ΔN(u)</code>，分母 <code>Y(u)</code>；全因 KM 由两者共同构成</td>
+      <td><b>不计入 <code>ΔN(u)</code></b>：按删失处理，该受试者只是安静地离开风险集，其未被观测到的后续风险被隐含地分摊给仍在访的人</td>
+    </tr>
+    <tr>
+      <td>CIF（主要）</td>
+      <td>进入原因 1 的失败数 <code>ΔN₁(u)</code>，并乘以前一时点的全因生存函数 <code>Ŝ(u−)</code></td>
+      <td><b>计入原因 2 的失败数 <code>ΔN₂(u)</code></b>：作为竞争事件显式占掉一部分概率质量，因此 CIF 的渐近水平可以小于 1</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>分母相同这一点，在软件输出里还有一处直接证据：<code>OUTCIF=</code> 数据集同时给出 <code>AtRisk</code>（「the number of subjects at risk just before the specified time」）、<code>Event</code>（该时点<b>关注原因</b>的失败数）与 <code>AllEventTypes</code>（该时点<b>任何原因</b>的失败数）三列<sup class="r">2</sup>。<mark>一张表里只有一个 <code>AtRisk</code>，却有两个失败数</mark>，正是「分母共享、分子分列」的软件层写照。（列名请以 <code>proc contents</code> 实测为准。）</p>
+
+<div class="ok">
+  <b>可写进程序的风险集 QC。</b>把 <code>OUTCIF=</code> 的 <code>AtRisk</code> 与独立推算的「观察时间 ≥ <code>t</code>」人数逐时点比对，应当完全相等——这是「分母口径没写错」的直接判据，代码见第 6 节块 5.3。注意不能拿 KM 一侧的输出去比：<code>OUTSURV=</code> 只提供生存函数与 <code>SDF_LCL</code>/<code>SDF_UCL</code>、<code>SDF_STDERR</code>、<code>_CENSOR_</code>，<b>不含 at-risk 列</b><sup class="r">3</sup>，所以要用推算值而不是另一列。
+</div>
+
+<div class="warn">
+  <b>一处需要留意的文档笔误。</b><code>OUTCIF=</code> 小节末句写「Each estimated CIF contains an initial observation whose value is <b>1</b> for the CIF and 0 for the time」<sup class="r">2</sup>；对照 <code>OUTSURV=</code> 的同款句式「an initial observation with the value 1 for the SDF and the value 0 for the time」<sup class="r">3</sup>可知，这是把生存函数那句直接复制过来所致——累积发生率在 <code>t = 0</code> 处只能是 <code>0</code>，不可能为 <code>1</code>。本文件按 <code>CIF(0) = 0</code> 处理，并在代码中显式断言该初始行。编程时请不要按字面实现。
+</div>
+
+<h3>2.2 恒等式：KM 的高估量恰好等于竞争事件的累积发生率</h3>
+
+<p>把这个恒等式写清楚，两种估计量的关系就不再是「一个高估另一个低估」的模糊印象了。设转移为第 1 类事件、转移前死亡为第 2 类事件，则 Aalen–Johansen 估计量满足 <code>F̂₁(t) + F̂₂(t) = 1 − Ŝ(t)</code>，其中 <code>Ŝ</code> 是把所有原因合并后的 Kaplan–Meier 估计。于是 <code>1 − Ŝ(t) − F̂₁(t)</code> 恒等于 <code>F̂₂(t)</code>，也就是竞争事件的累积发生率。Kaplan–Meier 分支所报告的无病率损失之所以系统性偏大，偏大的部分正是把本应显式建模的死亡算成了「转移的可能性」。这一结论不依赖任何模拟数据，可由代码直接验证，因此也应当成为交付前的一项例行 QC。<sup class="r">9,13,26</sup></p>
+
+<h3>2.3 方差结构：为什么 CIF 不能沿用 Greenwood 方差</h3>
+
+<p>方差结构上的差异同样值得单独说明。<code>Ŝ(t)</code> 的方差由 Greenwood 公式给出，其推导只用到「单一事件类型」的乘积结构；而 <code>F̂₁(t)</code> 是 <code>Ŝ(u−)</code> 与各时点转移增量 <code>ΔN₁(u)/Y(u)</code> 的加权和，因而其方差必须同时承载两部分的随机性，并考虑两者之间的协方差。<mark>这就是为什么 CIF 的置信区间不能沿用 Greenwood 方差</mark>，也是 <code>PROC LIFETEST</code> 为什么把方差选项 <code>ERROR=</code> 明确限定为「calculation of the variance of the CIF estimator」<sup class="r">1</sup>，而生存函数一侧另有一套固定机制。</p>
+
+<h2><span class="n">3</span>置信区间的两种构造机制</h2>
+
+<p class="lead">本项目中出现的全部 CI 都可归入两种机制之一：对估计值施加变换后再反变换的<b>变换法</b>，以及把逐点置信限倒过来用的<b>反演法</b>。把这两种机制分开看，Shell 里 8 处 CI 就不再是一堆彼此无关的公式。</p>
+
+<h3>3.1 变换法：方差 + 变换，作用于时间点</h3>
+
+<p>变换法的通式是先把估计量 <code>θ̂</code> 送进一个单调变换 <code>g</code>，在变换后的尺度上用 delta 法近似正态，取 ± z 倍标准误，再反变换回原尺度：</p>
+
+<pre><code>CI = [ g⁻¹( g(θ̂) − z · σ̂_g ) ,  g⁻¹( g(θ̂) + z · σ̂_g ) ] ,
+其中  σ̂_g = | g′(θ̂) | · σ̂(θ̂)      （delta 法）
+θ̂ = Ŝ(t)（生存函数一侧）或 F̂₁(t)（CIF 一侧）
+z  = 1 − α/2 分位点（α = 0.05 时为 1.959964）</code></pre>
+
+<p>SAS 用 <code>CONFTYPE=</code> 这一个选项来切换 <code>g</code>。五种取值在文档中被逐条列出，默认值为 <code>LOGLOG</code><sup class="r">1</sup>；对 CIF 一侧，<code>OUTCIF=</code> 数据集中的 <code>CONFTYPE</code> 列被明确定义为「the name of the transformation that is applied <b>to the CIF</b> to compute the confidence intervals <b>for the CIF</b>」<sup class="r">2</sup>。表 3 给出五种变换的完整对照。</p>
+
+<table>
+  <caption><b>表 3</b>　<code>CONFTYPE=</code> 五种变换的定义、施加后的区间形式与取值范围性质。g′ 为变换的一阶导数，用于 delta 法换算标准误。</caption>
+  <thead>
+    <tr><th style="width:11%">取值</th><th style="width:16%">g(x)</th><th style="width:13%">g′(x)</th><th style="width:28%">区间 g⁻¹(g(θ̂) ± z·σ̂_g)</th><th style="width:32%">性质与适用场合</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="tw">LINEAR</td>
+      <td class="tw">x</td>
+      <td class="tw">1</td>
+      <td class="tw">θ̂ ± z·σ̂</td>
+      <td>恒等变换，即最常见的对称 Wald 区间。<b>不保证落在 [0,1] 内</b>，也不保证下界非负、上界小于 1；在样本量小或 <code>θ̂</code> 接近 0 / 1 时覆盖概率明显偏离名义水平。可作为与「教科书写法」对照的敏感性分析，不建议作为报表口径。</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>LOGLOG</b><br><span style="color:#8A8277">默认</span></td>
+      <td class="tw">log(−log x)</td>
+      <td class="tw">1 / (x·log x)</td>
+      <td class="tw">exp( −exp( log(−log θ̂) ± z·σ̂ / (θ̂·|log θ̂|) ) )</td>
+      <td>对数—对数（亦称互补对数—对数）变换。两边界均落在 (0,1) 内；<b>尾部覆盖明显优于 LINEAR</b>。SAS 默认值；Choudhury 的模拟研究在比较 log(−log)、arcsine 与 delta 法方差后，推荐「Dinse–Larson 方差 + log(−log) 变换」用于竞争风险下的累积发生率<sup class="r">17</sup>。<mark>本项目 SAP 对 KM 分支指定的方法与 SAS 默认值恰好一致</mark>。</td>
+    </tr>
+    <tr>
+      <td class="tw">LOG</td>
+      <td class="tw">log x</td>
+      <td class="tw">1 / x</td>
+      <td class="tw">θ̂ · exp( ∓ z·σ̂ / θ̂ )</td>
+      <td>下界恒大于 0，但上界可以超过 1，需要额外截断。适合取值接近 0 的量，对接近 1 的量不对称性较差。</td>
+    </tr>
+    <tr>
+      <td class="tw">LOGIT</td>
+      <td class="tw">log( x / (1−x) )</td>
+      <td class="tw">1 / (x(1−x))</td>
+      <td class="tw">logistic( logit(θ̂) ± z·σ̂ / (θ̂(1−θ̂)) )</td>
+      <td>两边界均落在 (0,1) 内，对中部取值表现良好；当 <code>θ̂</code> 远离 0.5 时（例如 5 年累积发生率很低）对称性劣于 LOGLOG。</td>
+    </tr>
+    <tr>
+      <td class="tw">ASINSQRT</td>
+      <td class="tw">arcsin(√x)</td>
+      <td class="tw">1 / (2√(x(1−x)))</td>
+      <td class="tw">sin²( arcsin(√θ̂) ± z·σ̂ / (2√(θ̂(1−θ̂))) )</td>
+      <td>反正弦平方根变换。两边界均落在 (0,1) 内，方差在变换尺度上近似常数，历史上常用于比例数据；Choudhury 的模拟中其表现不如 log(−log)<sup class="r">17</sup>。</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  <b>两个必须提前约定的边界情形。</b>其一，当 <code>θ̂</code> 恰为 1（例如随访早期生存函数未发生任何下降）或恰为 0 时，<code>log(−log θ̂)</code>、<code>logit(θ̂)</code>、<code>log θ̂</code> 均退化，软件对这类点的上下限可能不输出、输出缺失、或直接取到边界。这不是错误，但必须在 QC 阶段显式检查，并在 Shell 脚注中约定这些点如何呈现。其二，若审阅者按 <code>θ̂ ± 1.96·σ̂</code> 理解 SAP 中的「95% CI」，<mark>那只有显式写 <code>CONFTYPE=LINEAR</code> 才是同一个区间</mark>；默认的 <code>LOGLOG</code> 给出的是变换尺度上的等尾区间，数值与之不同。
+</div>
+
+<h3>3.2 反演法：把逐点置信限倒过来用，作用于时间点</h3>
+
+<p>分位数 CI 不引入新的方差公式，而是把 3.1 节的置信限反过来当作检验统计量使用。设 <code>F(t)</code> 为所研究的分布函数（KM 分支取 <code>1 − S(t)</code>，CIF 分支取 <code>F₁(t)</code>），<code>l(t)</code>、<code>u(t)</code> 为其逐点置信下限与上限，则 <code>p</code> 分位数的置信集定义为</p>
+
+<pre><code>{ t : l(t) ≤ p ≤ u(t) }
+在 l(t)、u(t) 同为单调阶梯函数时，该集合为区间 [ qL , qU )，其中
+qL = inf{ t : u(t) ≥ p }     ← 由置信<b>上限</b>首次触及 p 确定
+qU = inf{ t : l(t) ≥ p }     ← 由置信<b>下限</b>首次触及 p 确定</code></pre>
+
+<p>这一构造即 Brookmeyer 与 Crowley 提出的方法<sup class="r">11</sup>，也正是 SAS 在 <code>Quartiles</code> 表中给出分位数 CI 的依据：<code>CONFTYPE=</code> 的文档写得很清楚，该选项除了作用于生存函数的逐点 CI 与置信带之外，「in addition to the confidence intervals for <b>the quartiles of the survival times</b>」<sup class="r">1</sup>。<mark>换言之，SAP 对 KM 分支写明的「Brookmeyer–Crowley + log-log」，在 SAS 中就是 <code>CONFTYPE=LOGLOG</code> 下的 <code>Quartiles</code> 表；而同一个反演逻辑可以逐字搬到 CIF 上，只是把 <code>S</code> 换成 <code>F₁</code>。</mark></p>
+
+<figure>
+<svg viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Brookmeyer-Crowley 反演示意">
+  <rect x="0" y="0" width="680" height="320" fill="#FFFFFF"/>
+  <text x="24" y="24" font-family="Georgia,serif" font-size="13.6" font-weight="700" fill="#5B4C9A">反演示意：以 Median 对应的 p = 0.50 为例</text>
+  <!-- axes -->
+  <line x1="70" y1="272" x2="640" y2="272" stroke="#D9D0BE" stroke-width="1.2"/>
+  <line x1="70" y1="272" x2="70" y2="48" stroke="#D9D0BE" stroke-width="1.2"/>
+  <text x="612" y="292" font-family="sans-serif" font-size="11.5" fill="#564F46">时间</text>
+  <text x="30" y="52" font-family="sans-serif" font-size="11.5" fill="#564F46">F(t)</text>
+  <!-- p level -->
+  <line x1="70" y1="128" x2="640" y2="128" stroke="#E2B93B" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <text x="76" y="122" font-family="monospace" font-size="11.5" fill="#8A6A12">p = 0.50</text>
+  <!-- CIF step -->
+  <path d="M70 272 L118 272 L118 250 L166 250 L166 222 L214 222 L214 186 L262 186 L262 150 L310 150 L310 124 L358 124 L358 104 L406 104 L406 92 L454 92 L454 84 L502 84 L502 78 L640 78"
+        fill="none" stroke="#5B4C9A" stroke-width="2.6"/>
+  <!-- upper limit -->
+  <path d="M70 272 L118 272 L118 236 L166 236 L166 200 L214 200 L214 158 L262 158 L262 112 L310 112 L310 84 L358 84 L358 62 L406 62 L406 52 L454 52 L454 48 L502 48 L502 46 L640 46"
+        fill="none" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/>
+  <!-- lower limit -->
+  <path d="M70 272 L118 272 L118 262 L166 262 L166 244 L214 244 L214 216 L262 216 L262 190 L310 190 L310 168 L358 168 L358 152 L406 152 L406 142 L454 142 L454 134 L502 134 L502 130 L640 130"
+        fill="none" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/>
+  <!-- intersections -->
+  <circle cx="310" cy="128" r="4.4" fill="#FFFFFF" stroke="#5B4C9A" stroke-width="2.2"/>
+  <circle cx="262" cy="128" r="4.4" fill="#FFFFFF" stroke="#2E4E8F" stroke-width="2.2"/>
+  <circle cx="502" cy="128" r="4.4" fill="#FFFFFF" stroke="#C4623A" stroke-width="2.2"/>
+  <line x1="310" y1="128" x2="310" y2="272" stroke="#5B4C9A" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="262" y1="128" x2="262" y2="272" stroke="#2E4E8F" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="502" y1="128" x2="502" y2="272" stroke="#C4623A" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="288" y="292" font-family="monospace" font-size="11.5" fill="#5B4C9A">q̂</text>
+  <text x="234" y="292" font-family="monospace" font-size="11.5" fill="#2E4E8F">qL</text>
+  <text x="496" y="292" font-family="monospace" font-size="11.5" fill="#C4623A">qU</text>
+  <!-- legend -->
+  <g font-family="sans-serif" font-size="11.6">
+    <line x1="404" y1="196" x2="436" y2="196" stroke="#5B4C9A" stroke-width="2.6"/><text x="444" y="200" fill="#564F46">CIF 点估计 F̂(t)</text>
+    <line x1="404" y1="216" x2="436" y2="216" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="220" fill="#564F46">逐点上限 CIF_UCL</text>
+    <line x1="404" y1="236" x2="436" y2="236" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="240" fill="#564F46">逐点下限 CIF_LCL</text>
+    <text x="404" y="260" fill="#8A8277">虚线均为同一次 PROC LIFETEST 的输出</text>
+  </g>
+</svg>
+<figcaption><b>图 2</b>　Brookmeyer–Crowley 反演示意。<b>点估计</b> <code>q̂</code> 取点估计阶梯首次达到 <code>p</code> 的时间；<b>下界</b> <code>qL</code> 由置信上限首次触及 <code>p</code> 的时间给出（上限阶梯抬升更快，故落在更早的时间点）；<b>上界</b> <code>qU</code> 由置信下限首次触及 <code>p</code> 的时间给出。三者的先后次序 <code>qL ≤ q̂ ≤ qU</code> 来自阶梯的单调性，可直接作为实现正确性的自检条件。</figcaption>
+</figure>
+
+<p>实现时有两点需要写进程序注释。第一，<code>l(t)</code>、<code>u(t)</code> 与 <code>F̂(t)</code> 必须来自<b>同一次</b> <code>PROC LIFETEST</code> 调用、同一组选项，否则三个阶梯不自洽，<code>qL ≤ q̂ ≤ qU</code> 可能被破坏。第二，点估计与上下界在判据上统一采用「首次达到或超过」的写法，即可保证三者的单调次序；严格的 <code>&gt;</code> 与 <code>≥</code> 之别只可能在阶梯跳变恰好落在 <code>p</code> 上的极罕见情形下产生一个时间点的差异，SAS 内建 <code>Quartiles</code> 表以自身实现为准，因此<b>KM 分支应当以 <code>Quartiles</code> 表作为主口径，把自行反演的结果作为交叉核对</b>；CIF 分支则没有这个选择，只能由自行反演给出，并在 SAP 中把规则写死。</p>
+
+<table>
+  <caption><b>参考</b>　同一组数据、同一个分位数，<code>CONFTYPE=</code> 不同则 CI 不同。下表取自 SAS 官方文档讲解 Brookmeyer–Crowley 反演的示例（该例的事件时点包含 107、109、110、122、129、172、192、194、230）：文档指出供取 [107, 230] 时置信度不足 95%，据 Brookmeyer 与 Crowley 的建议把区间外延到「不含下一个事件时点」，线性变换下得 [107, 276)。所有区间均为半开区间 <code>[L, U)</code>。（<a href="https://support.sas.com/documentation/cdl/en/statug/65328/HTML/default/statug_lifetest_details02.htm">SAS/STAT User&rsquo;s Guide，分位数 CI 与变换的对照小节</a>）</caption>
+  <thead><tr><th style="width:22%"><code>CONFTYPE=</code></th><th style="width:22%">25 分位数 95% CI</th><th style="width:56%">说明</th></tr></thead>
+  <tbody>
+    <tr><td class="tw">LINEAR</td><td class="tw">[107, 276)</td><td>恒等变换，即对称 Wald 区间。区间最宽——不做变换时，尾部的不对称性无法被吸收。<b>并非默认值</b></td></tr>
+    <tr><td class="tw"><b>LOGLOG</b></td><td class="tw">[86, 230)</td><td><b>SAS 默认值</b>。上界明显收紧，且两边界都落在 (0,1) 的有效范围内</td></tr>
+    <tr><td class="tw">LOG</td><td class="tw">[107, 332)</td><td>上界反而放宽。适合取值接近 0 的量，对分位数这类中等水平不如 LOGLOG</td></tr>
+    <tr><td class="tw">ASINSQRT</td><td class="tw">[104, 276)</td><td>与 LINEAR 接近，下界略紧</td></tr>
+    <tr><td class="tw">LOGIT</td><td class="tw">[104, 230)</td><td>上界与 LOGLOG 相同，下界略宽</td></tr>
+  </tbody>
+</table>
+
+<p>这张表的用途不是推导数值，而是说明一件事：<mark>「置信区间」这三个字在本项目里不是唯一确定的，它取决于一个必须被写进 SAP 的选项</mark>。因此本文件在第 7 节给出的增补文字里，把 <code>CONFTYPE=LOGLOG</code>、<code>ERROR=AALEN</code>、<code>ALPHA=</code>与 <code>ALPHAQT=</code> 都写到了参数层面。</p>
+
+<h3>3.3 两类机制之外的第三种：同时置信带</h3>
+
+<p>为完整起见需说明，<code>OUTSURV=</code> 还可以输出 <b>同时置信带</b>（<code>CONFBAND=EP</code> 的等精度带、<code>CONFBAND=HW</code> 的 Hall–Wellner 带、<code>CONFBAND=ALL</code> 两者）<sup class="r">1</sup>。它与前述逐点 CI 的区别在于推断对象是<b>整条曲线</b>而不是单个时间点，覆盖概率的控制对象不同，因此数值必然更宽，不能与逐点 CI 混用，也不能通过 <code>OUTCIF=</code> 获取（该选项只提供逐点限）。本项目 Shell 未要求置信带，故不作为报表口径；仅在需要讨论曲线整体比较时才有意义。</p>
+
+<h2><span class="n">4</span><code>METHOD=</code> 参数族：每一个选项究竟改变了什么</h2>
+
+<p class="lead">SAS 中「方法」并不是一个单一参数，而是分布在不同层次上的几个选项。把它们混在一起理解是常见的误解来源，最典型的一例是把 SAP 里写的「Greenwood method」当成某个 SAS 选项去查找——它其实不是选项，而是默认行为。</p>
+
+<table>
+  <caption><b>表 4</b>　<code>PROC LIFETEST</code> 中控制「估计量方法」与「CI 方法」的全部选项。<b>默认值以 SAS 官方文档为准。</b><sup class="r">1</sup></caption>
+  <thead>
+    <tr><th style="width:15%">选项</th><th style="width:12%">默认</th><th style="width:25%">取值与含义</th><th style="width:48%">作用对象与实务含义</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="tw"><b>METHOD=</b></td>
+      <td class="tw">KM</td>
+      <td>
+        <code>KM</code> / <code>PL</code>　乘积极限（Kaplan–Meier）<br>
+        <code>BRESLOW</code>　Breslow 估计＝累积风险的 Nelson–Aalen 估计取负指数<br>
+        <code>FH</code>　Fleming–Harrington，Breslow 的结（ties）处理修正，无结时与 Breslow 相同<br>
+        <code>ACT</code> / <code>LIFE</code> / <code>LT</code>　生命表（actuarial）估计<br>
+        <b style="color:#8A6A12">—— 本选项没有 <code>NELSON</code> 取值（见 4.1 节）</b>
+      </td>
+      <td>决定<b>生存函数本身</b>用哪种估计量，从而连带决定分位数与年度无病率的取值。默认 <code>KM</code>，与本项目 SAP 一致。<b>对 CIF 一侧无影响</b>：累积发生率由 Aalen–Johansen 结构给出，<code>METHOD=</code> 不参与。</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>CONFTYPE=</b></td>
+      <td class="tw">LOGLOG</td>
+      <td>
+        <code>LOGLOG</code>　log(−log x)<br>
+        <code>ASINSQRT</code>　arcsin(√x)<br>
+        <code>LINEAR</code>　恒等<br>
+        <code>LOG</code>　log x<br>
+        <code>LOGIT</code>　log(x/(1−x))
+      </td>
+      <td><mark>这就是通常所说的「CI 方法」旋钮。</mark>作用于三处：① 生存函数的逐点 CI；② 置信带；③ 生存时间分位数的 CI。对竞争风险数据，同一个 <code>CONFTYPE</code> 值也会施加到 CIF 上——<code>OUTCIF=</code> 的 <code>CONFTYPE</code> 列即记录该次分析实际使用的变换。本项目 KM 分支需写 <code>LOGLOG</code>（恰为默认），CIF 分支需显式写死。</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>ERROR=</b></td>
+      <td class="tw">AALEN</td>
+      <td>
+        <code>AALEN</code>　基于计数过程理论的方差（Aalen 1978）<br>
+        <code>DELTA</code>　delta 法方差（Marubini &amp; Valsecchi 1995）
+      </td>
+      <td><b>仅作用于 CIF 的方差</b>，文档原话为「the method of calculating the variance of the CIF estimator」。折半理解：<mark>SAS 里不存在 <code>ERROR=GREENWOOD</code></mark>；KM 的 Greenwood 方差是 <code>METHOD=KM</code> 的固定行为，无需（也无法）通过选项指定。因此 SAP 中 KM 一侧的「Greenwood method」在程序上是<b>默认行为</b>，只在 QC 说明中写「未施加额外选项，方差为默认 Greenwood」即可。</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>NELSON</b><br><span style="color:#8A8277">别名 AALEN</span></td>
+      <td class="tw">不开启</td>
+      <td>无值（开关）</td>
+      <td><mark>语句上的独立选项，不是 <code>METHOD=</code> 的取值。</mark>指定后改用 Nelson–Aalen 估计累积风险（而非 <code>−log S(t)</code>）并输出其标准误；<code>METHOD=LT</code> 时被忽略。<b>不改变 S(t)、S(t) 的 CI 与分位数，也不作用于 CIF。</b>详见 4.1 节</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>EVENTCODE=</b><br><span style="color:#8A8277">旧写法 FAILCODE=</span></td>
+      <td class="tw">无（需指定）</td>
+      <td><code>EVENTCODE=k</code>，指定关注原因的取值码</td>
+      <td>位于 <code>TIME</code> 语句，不在 <code>PROC LIFETEST</code> 语句上。不指定时无法输出 CIF。文档在 15.1 版把该选项的标题写作 <code>FAILCODE / EVENTCODE</code>，两个名字指向同一选项</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>CONFBAND=</b></td>
+      <td class="tw">不输出</td>
+      <td><code>EP</code>　等精度带<br><code>HW</code>　Hall–Wellner 带<br><code>ALL</code>　两者</td>
+      <td>仅向 <code>OUTSURV=</code> 写出<b>同时</b>置信带（<code>EP_LCL/EP_UCL</code>、<code>HW_LCL/HW_UCL</code>）；文档明确其可用性限于 <code>METHOD=KM</code>、<code>BRESLOW</code>、<code>FH</code>。与逐点 CI 是不同的推断对象，本项目不采用。</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>ALPHA=</b></td>
+      <td class="tw">0.05</td>
+      <td>任意 (0,1) 内取值</td>
+      <td>生存函数、风险函数与密度函数<b>逐点 CI</b> 的显著性水平。写 <code>0.05</code> 得到 95% CI。</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>ALPHAQT=</b></td>
+      <td class="tw">0.05</td>
+      <td>任意 (0,1) 内取值</td>
+      <td><mark>生存时间<b>分位数</b> CI 的显著性水平，与 <code>ALPHA=</code> 相互独立。</mark>两者都是 0.05 时才同时得到 95% 的逐点 CI 与 95% 的分位数 CI。这一独立性容易被忽略：若只改 <code>ALPHA=</code>，分位数 CI 的水平不会跟着变。</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>CIFVAR</b></td>
+      <td class="tw">关闭</td>
+      <td>无值（开关）</td>
+      <td>让打印输出显示 CIF 估计量的<b>方差</b>而非标准误；默认显示标准误。仅影响显示，不改变数值。</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="ok">
+  <b>跨工具核对。</b>同一套旋钮在其他软件中名字不同、含义相同，识别名称有助于交叉复核：R 的 <code>survival::survfit()</code> 对应 <code>CONFTYPE=</code> 的形参名为 <code>conf.type</code>；Python 的 scikit-survival 在 <code>cumulative_incidence_competing_risks()</code> 中以 <code>var_type</code> 对应 <code>ERROR=</code>（取值 <code>"Aalen"</code>、<code>"Dinse"</code>）；R 的 <code>cmprsk</code> 及其上层封装 <code>tidycmprsk</code> 在累积发生率上默认使用 Aalen 型方差，且不提供其它变换选项（因此只能核对，不能替代 SAS 的变换选择）。若需第三方复核 CIF 的数值，<b>应当用 <code>error=aalen conftype=loglog</code> 与 R 侧默认设置对齐</b>，因为二者在这一组合上结果一致<sup class="r">4,17,26</sup>。
+</div>
+
+<h3>4.1 关于 <code>NELSON</code>：为什么它不在 <code>METHOD=</code> 的取值里</h3>
+
+<p>这是一个很容易记混的地方，且不只一个人记混。SAS 官方论坛上就有人写着「SAS references say to specify <code>METHOD=NELSON</code> within <code>proc lifetest</code>」而发帖求助；而文档里真正可用的写法是直接把 <code>NELSON</code> 当作 <code>PROC LIFETEST</code> 语句上的一个独立选项。两者结果上差别不小：写错了会报错，而不是静默给出一个不同的估计量。</p>
+
+<div class="key">
+  <b>文档原文。</b><code>METHOD=type</code>　specifies the method to be used to compute the survival function estimates；列出的取值为 <code>BRESLOW</code>、<code>FH</code>、<code>KM</code> / <code>PL</code>、<code>ACT</code> / <code>LIFE</code> / <code>LT</code>，并以「By default, <code>METHOD=KM</code>」收尾。<br>
+  而 <code>NELSON</code> 与 <code>AALEN</code> 在文档的选项清单里占据的是<b>独立条目</b>（按字母序排在 <code>MISSING</code> 与 <code>NINTERVAL=</code> 之间），原文为「produces the Nelson-Aalen estimates of the cumulative hazards and the corresponding standard errors. This option is ignored if <code>METHOD=LT</code> is specified.」<sup class="r">1</sup>
+</div>
+
+<p>也就是说，<b>两个选项作用在不同的对象上</b>：<code>METHOD=</code> 决定「用哪个估计量取估计生存函数」，<code>NELSON</code> 则决定「累积风险列用哪个估计量」。后者不修改 <code>S(t)</code>、不修改 <code>S(t)</code> 的置信区间、也不修改分位数，它只把输出中的——如果有的话——累积风险列从 <code>−log S(t)</code> 换成 Nelson–Aalen 估计值。</p>
+
+<table>
+  <caption><b>表 5</b>　字面相同、对象不同的三个「Aalen / Nelson」。这是本文件里最容易被误读的一组名词。</caption>
+  <thead><tr><th style="width:24%">出现形式</th><th style="width:26%">作用对象</th><th style="width:50%">含义与本项目相关性</th></tr></thead>
+  <tbody>
+    <tr><td class="tw">NELSON / AALEN<br><span style="color:#8A8277">（PROC 语句选项）</span></td><td>累积风险函数 <code>H(t)</code> 的估计量</td><td>把累积风险的估计从 <code>−log S(t)</code> 改为累加风险 <code>∑ dᵢ / nᵢ</code>。<b>与本项目的 8 处 CI 无关</b>；SAP 与程序均不需要它</td></tr>
+    <tr><td class="tw">ERROR=AALEN</td><td>CIF 估计量 <code>F̂ⱼ(t)</code> 的<b>方差</b></td><td>基于计数过程理论（SAS 文档进一步追溯到 Aalen 1978）。默认值。<b>本项目 CIF 分支的方差口径</b>，见 4.2 节</td></tr>
+    <tr><td class="tw">CONFTYPE=LOGLOG<br><span style="color:#8A8277">（文档别称）</span></td><td>变换 <code>g</code> 本身</td><td>文档把 log–log 变换又称为「log cumulative hazard transformation」，因为它对累积风险取对数。<b>这个别称里的「cumulative hazard」与第一行的 NELSON 没有关系</b></td></tr>
+  </tbody>
+</table>
+
+<h3>4.2 AALEN 与 DELTA：两个方差估计量在小样本下并不等价</h3>
+
+<p>由于 SAP 在 CIF 分支上没有规定方差，<code>ERROR=</code> 的默认值 <code>AALEN</code> 会在无人察觉的情况下成为项目口径，这一隐性默认值得评估。Aalen 型方差来自计数过程的鞅理论；delta 法则把 CIF 估计量视为多项分布的矩，用一阶展开近似。Braun 与 Yuan 在六种方差估计量与 bootstrap 之间做了系统的模拟比较，结论是：<mark>基于多项分布矩的估计量（Dinse 型 / delta 型）与 bootstrap 的表现接近，即使在 20 例的样本中仍相当准确；而基于鞅理论的估计量除一个例外，在少于 100 例的样本中倾向于系统性高估或低估经验方差</mark><sup class="r">18</sup>。Choudhury 的独立模拟同样支持 Dinse–Larson 型方差配合 log(−log) 变换<sup class="r">17</sup>。</p>
+
+<p>这一结论对本研究的直接含义是：若各队列的转移事件数较少（这在 registry 研究中很常见），<code>ERROR=AALEN</code>（即 SAS 默认）给出的 CIF 置信限可能偏离名义覆盖水平。稳健的做法是把 <code>ERROR=DELTA</code> 作为<b>预先规定的敏感性分析</b>同时跑一遍，比较两组 <code>CIF_STDERR</code> 的相对差异；若差异可忽略，则在 SAP 中以默认值定稿并记录该核对结论；若差异明显，则应把方差选择本身作为一个待申办方与统计审阅方确认的决策项，而不是留作默认。两个方差的具体公式见 SAS 文档「Estimation of the CIF」一节<sup class="r">4</sup>，其中 delta 法那一项的写法被作者描述为「in the spirit of Greenwood's formula」。</p>
+
+<h2><span class="n">5</span>CIF 分位数为何没有现成输出</h2>
+
+<p class="lead">这是本项目最容易卡住一处：SAP 要求输出 CIF 的 25、50、75 分位数及 95% CI，而 SAS 无论如何设置选项，都不会给出这三个数。原因分三层，只有第一层是软件层面的，后两层是统计层面的。</p>
+
+<h3>5.1 软件层：<code>Quartiles</code> 表根本不属于 CIF</h3>
+
+<p>SAS 官方文档列出了 <code>PROC LIFETEST</code> 产生的全部 ODS 表及其适用语句<sup class="r">5</sup>。与竞争风险相关的表只有三张：<code>CIF</code>（描述为「Cumulative incidence function estimates」）、<code>FailureSummary</code>（「Summary of failure outcomes for competing-risks data」）与 <code>GrayTest</code>（「Results of k-sample test of Gray (1988) comparing CIFs」）。而 <code>Quartiles</code> 表的描述是「<b>Quartiles of the survival times</b>」，其适用条件被限定为 <code>METHOD=PL | B | FH</code>——也就是说，它挂的是<b>生存函数</b>这条线，与 CIF 无关。<code>OUTCIF=</code> 数据集的列清单里只有风险集与失败数三列（<code>AtRisk</code>、<code>Event</code>、<code>AllEventTypes</code>，见 2.1 节）加上 <code>CIF</code>、<code>CIF_STDERR</code>、<code>ALPHA</code>、<code>CONFTYPE</code>、<code>CIF_LCL</code>、<code>CIF_UCL</code>，没有分位数列<sup class="r">2</sup>。图形侧的证据一致：<code>PLOTS=CIF</code> 与 <code>PLOTS=CIF(CL)</code> 生成 <code>cifPlot</code>，但它不传递 <code>Median</code>、<code>LowerMedian</code>、<code>UpperMedian</code> 这几个动态变量，而 <code>SurvivalPlot</code> 会传<sup class="r">6</sup>。软件没有欠缺什么，它只是从未把 CIF 分位数当作一个输出对象。</p>
+
+<h3>5.2 统计层之一：CIF 不是真分布函数，分位数可能不存在</h3>
+
+<p>累积发生率函数是<b>非真（improper）</b>分布函数：<code>F₁(∞) = P(发生转移) &lt; 1</code>，其渐近水平（平台值）等于该组最终发生转移的比例。因此它的逆函数只在平台值以下有定义。文献对此的表述很直接：CIF 的渐近上界小于 1，意味着它是非真函数，定义均值没有意义（恒为无穷），而「分位数有限、且可能从观测数据中识别」，因此被推荐作为刻画 CIF 曲线的摘要量<sup class="r">19</sup>；<code>p</code> 分位数定义为 <code>F₁⁻¹(p) = inf{ t : F₁(t) ≥ p }</code><sup class="r">19</sup>。反过来看，当平台值低于 <code>p</code> 时，该分位数在数学上根本不存在，任何软件都不可能给出——包括 SAS。这解释了为什么 Shell 会给分位数留出三个单元格却没有任何提示：<mark>在本研究的规模下，「中位转移时间为 NE」是完全可以预期的正常结果，而不是数据质量问题</mark>。</p>
+
+<figure>
+<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CIF 平台值低于目标水平时分位数不可估的示意">
+  <rect x="0" y="0" width="680" height="300" fill="#FFFFFF"/>
+  <line x1="70" y1="250" x2="646" y2="250" stroke="#D9D0BE" stroke-width="1.2"/>
+  <line x1="70" y1="250" x2="70" y2="40" stroke="#D9D0BE" stroke-width="1.2"/>
+  <text x="608" y="270" font-family="sans-serif" font-size="11.5" fill="#564F46">时间</text>
+  <text x="26" y="46" font-family="sans-serif" font-size="11.5" fill="#564F46">F₁(t)</text>
+  <!-- levels -->
+  <line x1="70" y1="88" x2="646" y2="88" stroke="#C4623A" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="76" y="82" font-family="monospace" font-size="11.5" fill="#C4623A">p = 0.50（目标水平）</text>
+  <line x1="70" y1="150" x2="646" y2="150" stroke="#E2B93B" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="76" y="144" font-family="monospace" font-size="11.5" fill="#8A6A12">平台值 F₁(∞)</text>
+  <!-- curve -->
+  <path d="M70 250 L130 250 L130 232 L190 232 L190 208 L250 208 L250 184 L310 184 L310 166 L370 166 L370 156 L430 156 L430 151 L500 151 L500 149 L590 149 L590 148 L646 148"
+        fill="none" stroke="#5B4C9A" stroke-width="2.8"/>
+  <circle cx="590" cy="148" r="4.6" fill="#5B4C9A"/>
+  <line x1="590" y1="148" x2="590" y2="250" stroke="#5B4C9A" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="528" y="266" font-family="monospace" font-size="11.5" fill="#5B4C9A">末次随访</text>
+  <!-- gap annotation -->
+  <line x1="336" y1="88" x2="336" y2="150" stroke="#8A8277" stroke-width="1.2"/>
+  <line x1="330" y1="88" x2="342" y2="88" stroke="#8A8277" stroke-width="1.2"/>
+  <line x1="330" y1="150" x2="342" y2="150" stroke="#8A8277" stroke-width="1.2"/>
+  <text x="348" y="124" font-family="sans-serif" font-size="12" fill="#564F46">曲线永不触及 p ⇒ 该分位数不存在</text>
+  <g>
+    <rect x="380" y="180" width="266" height="56" rx="7" fill="#FDF3E7" stroke="#E0A85C"/>
+    <text x="394" y="202" font-family="sans-serif" font-size="12.4" fill="#8A5B1C" font-weight="700">报告口径：NE（not estimable）</text>
+    <text x="394" y="224" font-family="sans-serif" font-size="11.6" fill="#8A5B1C">同时报告平台值与最大随访时间，供审阅者判断</text>
+  </g>
+</svg>
+<figcaption><b>图 3</b>　CIF 平台值低于目标水平 <code>p</code> 时，<code>p</code> 分位数与其置信区间均不存在。此现象在竞争风险与低事件率的 registry 研究中很常见。建议在 SAP 中预先写明「不可估」的呈现规则，并要求同时输出平台值与最大随访时间，避免把「不存在」误读为「未算出」。</figcaption>
+</figure>
+
+<h3>5.3 统计层之二：CIF 分位数的推断方法本身就成熟得较晚</h3>
+
+<p>还有一层历史原因值得知道：CIF 分位数的非参数推断直到 Peng 与 Fine 的工作才被系统建立，他们提出基于累积发生率函数定义分位数，并证明了该分位数函数非参数估计量的一致性与弱收敛，由此得到置信区间、置信带与两样本检验<sup class="r">19</sup>。Lee 与 Fine 随后给出简化版非参数推断与参数化版本，并在经验研究中比较两者，发现在模型误设不严重时参数法均方误差更小<sup class="r">20</sup>。也就是说，<mark>这是一个方法学上较晚成熟的领域，通用统计软件没有把它做成默认输出，是有其背景的</mark>，而不是实现疏漏。这也意味着：如果项目要使用超出「逐点置信限反演」的精巧方法，就必须在 SAP 中明确引用方法学文献，而不能期望软件默认承担。</p>
+
+<h3>5.4 四条可行路径及其取舍</h3>
+
+<table>
+  <caption><b>表 6</b>　CIF 分位数及其 95% CI 的可行实现路径。方案 A 为本项目推荐的最小充分路径。</caption>
+  <thead>
+    <tr><th style="width:8%">方案</th><th style="width:24%">做法</th><th style="width:24%">优点</th><th style="width:24%">代价与限制</th><th style="width:20%">依据</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="tw"><b>A</b><br>推荐</td>
+      <td>由 <code>OUTCIF=</code> 的 <code>CIF_LCL</code>/<code>CIF_UCL</code> 按 Brookmeyer–Crowley 规则反演，见 3.2 节与第 6 节代码</td>
+      <td>零额外依赖；与 KM 分支的分位数 CI 使用<b>完全相同的构造逻辑</b>，审计口径一致；完全可复现；已由 SAS 自身用于 KM 分位数，先例充分</td>
+      <td>区间为逐点置信限反演得到的置信集，非同时覆盖；平台值低于 <code>p</code> 时必然返回 NE，需在 SAP 中写明规则</td>
+      <td>Brookmeyer &amp; Crowley<sup class="r">16</sup>；SAS <code>CONFTYPE=</code> 文档<sup class="r">1</sup>；Peng &amp; Fine<sup class="r">19</sup></td>
+    </tr>
+    <tr>
+      <td class="tw"><b>B</b></td>
+      <td>对受试者做非参数 bootstrap 重抽样，每个样本重估 CIF 与分位数，取百分位法（或 BC<sub>a</sub>）区间</td>
+      <td>不需分布近似；参数化程度最低；对偏态与平台附近的表现通常更稳</td>
+      <td>需预先规定随机种子、重抽样次数与失败样本（分位数不可估）的处理规则；计算量显著上升；审计上需额外交代可复现性，且需说明与「方法 A 主口径」的关系</td>
+      <td>竞争风险下的重抽样方法见 Beyersmann 等<sup class="r">21</sup>、Bluhmki 等<sup class="r">22</sup>；作为方差比较基准见 Braun &amp; Yuan<sup class="r">18</sup></td>
+    </tr>
+    <tr>
+      <td class="tw"><b>C</b></td>
+      <td>改用或改用专用软件/包：R 的 <code>etm</code>、<code>mstate</code>、<code>riskRegression</code> 等可给出竞争风险下的分布特征；Stata 的 <code>stcompet</code> 直接输出 CIF 及其 ln(−ln) 变换界限</td>
+      <td>实现经过同行使用与检验；部分包支持协变量调整</td>
+      <td>引入第二套工具链，需做跨软件数值一致性核对；仍需自行把分布特征换算为 25/50/75 分位数的 CI；审批链上需说明版本与调用方式</td>
+      <td>Allignol 等<sup class="r">30</sup>；Putter 等<sup class="r">27</sup>；R 的 <code>etm</code>、<code>mstate</code>、<code>riskRegression</code> 等包</td>
+    </tr>
+    <tr>
+      <td class="tw"><b>D</b></td>
+      <td>参数化或半参数化：对 CIF 建立 Fine–Gray 子分布模型或参数化 CIF，再由模型导出分位数与 CI</td>
+      <td>可同时处理协变量与组间比较；小样本下方差更稳，Lee 与 Fine 的经验研究支持</td>
+      <td>引入模型假设（比例子分布风险等），需做假设检验与敏感性分析；作为主要分析会把终点摘要问题变成建模问题，与 SAP 现有的「非参数 CIF + KM 支持性分析」框架不匹配</td>
+      <td>Lee &amp; Fine<sup class="r">20</sup>；Fine &amp; Gray（经 Guo &amp; So 的 SAS 实现）<sup class="r">31</sup></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="key">
+  <b>建议。</b>主口径取<b>方案 A</b>：与 KM 分支同源、无新增依赖、结论可逐页复核。<b>方案 B（bootstrap）作为预设的敏感性分析</b>，用于验证方案 A 的区间宽度是否被低估。<b>方案 C、D 仅在前两者出现实质分歧时才升级考虑</b>。无论采用哪一条，都必须在 SAP 中写明：分位数的定义式、区间的构造规则、平台值低于目标水平时的「不可估」判定与呈现方式，以及区间是否伴随报告平台值与最大随访时间。
+</div>
+
+<h2><span class="n">6</span>参考代码：统计分析部分</h2>
+
+<p class="lead">以下代码只包含统计分析逻辑，不含报表宏、页眉页脚、输出层格式化与骨架程序。输入为项目的 ADTTE（<code>paramcd&nbsp;=&nbsp;'TTMET'</code>），其中 <code>aval</code> 为距父研究首次给药的时长、<b>单位已是「年」</b>（<code>avalu&nbsp;=&nbsp;'YEARS'</code>），<code>cnsrscd</code> 取 1（转移事件）、2（转移前死亡，即竞争事件）、0（删失），<code>anlgrp</code> 为分组变量。所有选项均显式写出，不使用默认值的隐式依赖。基准环境为 <b>SAS 9.4M7（TS1M7）/ SAS/STAT 15.2</b>（第 8 节）；<code>OUTCIF=</code> 的列名请先用 <code>proc contents</code> 核一遍再改列，不要凭记忆编码。</p>
+
+<div class="codelabel">块 1 · 分析集（最小必要派生）</div>
+<pre><code>/*------------------------------------------------------------------
+  输入：项目 ADTTE（adtte.sas Step 6 的输出）
+        paramcd = 'TTMET'
+        aval    = 距父研究首次给药的时长，单位已为「年」(AVALU='YEARS')
+        cnsrscd = 1 转移事件 / 2 转移前死亡(竞争事件) / 0 删失
+  输出：tte
+------------------------------------------------------------------*/
+data tte;
+    set adam.adtte;
+    where paramcd = 'TTMET' and aval ne .;
+    evt = (cnsrscd = 1);          /* KM 分支的事件指示：0 与 2 同为删失 */
+    keep usubjid anlgrp aval cnsrscd evt;
+run;</code></pre>
+
+<div class="codelabel">块 2 · KM 支持性分析（表 14.2.1.3 / 表 14.2.2.1）</div>
+<pre><code>/* 方差：METHOD=KM 的默认 Greenwood（SAS 无 ERROR=GREENWOOD，无需也无法指定）
+   变换：SAP 指定 log-log，即 CONFTYPE=LOGLOG（恰为默认，仍显式写出）
+   分位数 CI：由 CONFTYPE 驱动的 Brookmeyer-Crowley 反演               */
+proc lifetest data = tte
+        method   = km            /* KM | BRESLOW | FH | ACT/LIFE/LT        */
+        conftype = loglog        /* 施加于 S(t) 的变换；默认值              */
+        alpha    = 0.05          /* 逐点 CI 显著性水平                      */
+        alphaqt  = 0.05          /* 分位数 CI 显著性水平（独立于 ALPHA=）    */
+        outsurv  = km_surv       /* SURVIVAL / SDF_STDERR / SDF_LCL / SDF_UCL */
+        noprint;
+    time aval  * cnsrscd(0 2);   /* 死亡(2)在 KM 分支按删失处理              */
+    strata anlgrp;
+run;
+
+/* 2a. 1–5 年无病率(%)及其 95% CI
+       阶梯右连续：取 time &lt;= t 的最后一条观测                        */
+proc sql;
+    create table km_rate as
+    select g.anlgrp,
+           y.yr                 as yr,
+           s.survival           as rate      label = 'KM 无病率',
+           s.sdf_lcl            as rate_lcl  label = '95% CI 下限',
+           s.sdf_ucl            as rate_ucl  label = '95% CI 上限'
+    from (select distinct anlgrp from km_surv)                         as g,
+         (select 1 as yr union all select 2 as yr union all select 3 as yr
+          union all select 4 as yr union all select 5 as yr)           as y,
+         km_surv                                                       as s
+    where s.anlgrp = g.anlgrp
+      and s.aval  &lt;= y.yr
+    group by g.anlgrp, y.yr
+    having s.aval = max(s.aval);
+quit;</code></pre>
+
+<div class="codelabel">块 3 · CIF 主要分析（表 14.2.1.2）</div>
+<pre><code>/* 基准环境：SAS 9.4M7（TS1M7）/ SAS/STAT 15.2
+   方差：ERROR= 仅作用于 CIF；默认 AALEN，DELTA 为可选（见块 5）
+   变换：CONFTYPE= 施加于 CIF 以计算 CIF 的置信区间（SAS 文档原话）
+   TIME 语句：eventcode=1 指定关注事件；cnsrscd 的其余非零值视为竞争事件
+              15.1 及以后版本在文档中列作 FAILCODE / EVENTCODE，同一选项
+   输出列：CIF / CIF_STDERR / ALPHA / CONFTYPE / CIF_LCL / CIF_UCL
+            以及风险集计数 AtRisk / Event / AllEventTypes
+   注意：t=0 的初始观测按 CIF(0)=0 解释（文档该句疑为复制笔误，见 2.1 节） */
+proc lifetest data = tte
+        conftype = loglog        /* 默认；SAP 未规定，此处显式写死          */
+        error    = aalen         /* AALEN(默认) | DELTA                     */
+        alpha    = 0.05
+        outcif   = cif_est       /* CIF / CIF_STDERR / ALPHA / CONFTYPE /   */
+        noprint;                 /* CIF_LCL / CIF_UCL                       */
+    time aval  * cnsrscd(0) / eventcode = 1;
+    strata anlgrp;
+run;
+
+/* 3a. 审计留痕：回读本次分析实际使用的变换与水平，写入 LOG */
+data _null_;
+    set cif_est(obs = 1 keep = conftype alpha);
+    put 'NOTE: [QC] CIF CI transformation actually applied = ' conftype
+        ', alpha = ' alpha;
+run;
+
+/* 3b. 1–5 年累积发生率(%)及其 95% CI */
+proc sql;
+    create table cif_rate as
+    select g.anlgrp,
+           y.yr                as yr,
+           s.cif               as cif       label = 'CIF 累积发生率',
+           s.cif_lcl           as cif_lcl   label = '95% CI 下限',
+           s.cif_ucl           as cif_ucl   label = '95% CI 上限'
+    from (select distinct anlgrp from cif_est)                         as g,
+         (select 1 as yr union all select 2 as yr union all select 3 as yr
+          union all select 4 as yr union all select 5 as yr)           as y,
+         cif_est                                                       as s
+    where s.anlgrp = g.anlgrp
+      and s.aval  &lt;= y.yr
+    group by g.anlgrp, y.yr
+    having s.aval = max(s.aval);
+quit;
+
+/* 3c. Event / Death / Censored 计数（表头三行） */
+proc freq data = tte noprint;
+    tables anlgrp * cnsrscd / out = cif_counts;
+run;</code></pre>
+
+<div class="codelabel">块 4 · 分位数及其 95% CI（KM 与 CIF 共用同一反演）</div>
+<pre><code>/* 4.1 把两条线统一成同构的阶梯三元组 (f, l, u)
+       KM  ：f = 1 - S(t) 非增，故 f 的下限 = 1 - S(t) 的上限
+       CIF ：f = F1(t)    非减，直接取 OUTCIF 的两个限                */
+data step_km;
+    set km_surv(rename = (survival = s sdf_lcl = sl sdf_ucl = su));
+    f = 1 - s;                  /* 补生存函数(非增)      */
+    l = 1 - su;                 /* f 的下限 = 1 - S 上限 */
+    u = 1 - sl;                 /* f 的上限 = 1 - S 下限 */
+    keep anlgrp aval f l u;
+run;
+
+data step_cif;
+    set cif_est(rename = (cif = f cif_lcl = l cif_ucl = u));
+    keep anlgrp aval f l u;
+run;
+
+data step_all;
+    set step_km(in = in_km) step_cif(in = in_cif);
+    length src $3;
+    if in_km  then src = 'KM';
+    if in_cif then src = 'CIF';
+run;
+
+proc sort data = step_all; by src anlgrp aval; run;
+
+/* 4.2 Brookmeyer-Crowley 反演
+       q  = inf{ t : f(t) >= p }
+       qL = inf{ t : u(t) >= p }        u = f 的置信上限
+       qU = inf{ t : l(t) >= p }        l = f 的置信下限
+       依据 { t : l(t) &lt;= p &lt;= u(t) } = [ qL , qU )
+       自检条件：qL &lt;= q &lt;= qU 恒成立                                   */
+data quant;
+    set step_all;
+    by src anlgrp aval;
+    array pct{3} _temporary_ (0.25 0.50 0.75);
+    array qq {3} q25  q50  q75;
+    array ql {3} l25  l50  l75;
+    array qu {3} u25  u50  u75;
+    array fq {3} $1 fq25 fq50 fq75;   /* 点估计是否可估 Y/N */
+    array fl {3} $1 fl25 fl50 fl75;
+    array fu {3} $1 fu25 fu50 fu75;
+    retain q25-q75 l25-l75 u25-u75 fq25-fq75 fl25-fl75 fu25-fu75;
+    if first.anlgrp then do j = 1 to 3;
+        qq{j} = .; ql{j} = .; qu{j} = .;
+        fq{j} = 'N'; fl{j} = 'N'; fu{j} = 'N';
+    end;
+    do j = 1 to 3;
+        if missing(qq{j}) and f >= pct{j} then do; qq{j} = aval; fq{j} = 'Y'; end;
+        if missing(ql{j}) and u >= pct{j} then do; ql{j} = aval; fl{j} = 'Y'; end;
+        if missing(qu{j}) and l >= pct{j} then do; qu{j} = aval; fu{j} = 'Y'; end;
+    end;
+    if last.anlgrp then output;
+    keep src anlgrp q25-q75 l25-l75 u25-u75 fq25-fq75 fl25-fl75 fu25-fu75;
+run;
+
+/* 4.3 自检：三者的单调次序与「不可估」标记 */
+data quant_chk;
+    set quant;
+    array qq{3} q25  q50  q75;
+    array ql{3} l25  l50  l75;
+    array qu{3} u25  u50  u75;
+    array fq{3} $1 fq25 fq50 fq75;
+    array fl{3} $1 fl25 fl50 fl75;
+    array fu{3} $1 fu25 fu50 fu75;
+    do j = 1 to 3;
+        if fq{j} = 'Y' and fl{j} = 'Y' and ql{j} > qq{j} then
+            put 'WARNING: [QC] qL &gt; q, src=' src ' anlgrp=' anlgrp ' j=' j;
+        if fq{j} = 'Y' and fu{j} = 'Y' and qu{j} &lt; qq{j} then
+            put 'WARNING: [QC] qU &lt; q, src=' src ' anlgrp=' anlgrp ' j=' j;
+    end;
+run;</code></pre>
+
+<div class="codelabel">块 5 · 交叉核对与敏感性分析</div>
+<pre><code>/* 5.1 KM 分支交叉核对：LIFETEST 内建的 Quartiles 表是 Brookmeyer-Crowley 的
+       官方实现，应以它为主口径，与 4.2 的自行反演结果比对。
+       该表列名随版本略有差异，先取 CONTENTS 再写比对逻辑，切勿凭记忆编码。 */
+ods output quartiles = km_quart;
+proc lifetest data = tte
+        method   = km
+        conftype = loglog
+        alphaqt  = 0.05
+        noprint;
+    time aval  * cnsrscd(0 2);
+    strata anlgrp;
+run;
+ods output close;
+
+proc contents data = km_quart varnum; run;   /* 确认列名后再比对 */
+
+/* 5.2 敏感性分析：改用 delta 法方差，比较 CIF_STDERR 与置信限的差异。
+       参照 Braun &amp; Yuan (2007)：Aalen 型方差在 n &lt; 100 时可能系统性偏倚，
+       Dinse / delta 型更接近 bootstrap。                                     */
+proc lifetest data = tte
+        conftype = loglog
+        error    = delta
+        alpha    = 0.05
+        outcif   = cif_delta
+        noprint;
+    time aval  * cnsrscd(0) / eventcode = 1;
+    strata anlgrp;
+run;
+
+data cif_var_cmp;
+    merge cif_est  (in = a keep = anlgrp aval cif cif_stderr cif_lcl cif_ucl
+                            rename = (cif_stderr = se_a cif_lcl = l_a
+                                      cif_ucl = u_a cif = cif_a))
+          cif_delta(in = b keep = anlgrp aval cif cif_stderr cif_lcl cif_ucl
+                            rename = (cif_stderr = se_d cif_lcl = l_d
+                                      cif_ucl = u_d cif = cif_d));
+    by anlgrp aval;
+    if a and b;
+    se_ratio = se_d / se_a;                     /* 方差口径的相对差异 */
+    w_a      = u_a - l_a;                       /* Aalen 区间宽度     */
+    w_d      = u_d - l_d;                       /* Delta 区间宽度     */
+    w_ratio  = w_d / w_a;
+run;
+
+proc means data = cif_var_cmp n min p10 median p90 max maxdec = 3;
+    var se_ratio w_ratio;
+run;
+/* 5.3 风险集（分母）一致性核对
+       两条分支的风险集是同一个 Y(t)（见 2.1 节），因此 AtRisk 应当等于
+       「观察时间 >= 该时点」的人数。两者不等，问题一定在分析集、
+       时点取数或分层定义，而不是「两种方法的风险集算法不同」。
+       说明：OUTSURV= 不含 at-risk 列，只能用推算值去比，不能拿另一列去凑。
+       t=0 那一行是最好的烟点：AtRisk 应等于分析集总人数。   */
+proc sql;
+    create table atrisk_chk as
+    select c.anlgrp,
+           c.aval                        as aval,
+           c.atrisk                      as atrisk_sas,
+           count(t.usubjid)              as atrisk_chk,
+           c.atrisk - count(t.usubjid)   as diff
+    from cif_est as c
+         left join tte as t
+              on  t.anlgrp = c.anlgrp
+              and t.aval  >= c.aval
+    group by c.anlgrp, c.aval, c.atrisk
+    having c.atrisk ne count(t.usubjid);   /* 应输出 0 行；有行即说明分母口径有误 */
+quit;
+
+data _null_;
+    if 0 then set atrisk_chk nobs = n;
+    put 'NOTE: [QC] atrisk mismatch rows = ' n;   /* 需为 0 */
+run;
+
+/* 5.4 初始观测断言：CIF(0) 必须为 0（文档 t=0 那句写作 1，疑为笔误） */
+data _null_;
+    set cif_est(where = (aval = 0));
+    if cif ne 0 then put 'WARNING: [QC] CIF(0) ne 0, cif=' cif;
+run;</code></pre>
+
+<h2><span class="n">7</span>对 SAP 第 5.10.1 节的建议补充文字</h2>
+
+<p class="lead">以下文字可直接插入 SAP 5.10.1 节主分析段落之后，用于填补 CIF 分支的 CI 方法空白。写法上与 SAP 现有风格一致，仅补充方法、方差与「不可估」规则三项，不改变原有的估计目标与终点定义。</p>
+
+<div class="card" style="background:#fff;border:1px solid #E7E0D3;border-radius:10px;padding:20px 24px;margin:20px 0">
+  <p style="margin-top:0"><b>建议增补（CIF 分支）：</b></p>
+  <p style="font-family:Georgia,serif;font-size:15px;line-height:1.9;background:var(--hl2);padding:16px 18px;border-radius:6px">
+  The pointwise 95% confidence intervals for the cumulative incidence function will be computed in PROC LIFETEST using the default variance estimator based on the counting process theory (ERROR=AALEN) and the log-log transformation applied to the CIF (CONFTYPE=LOGLOG), with ALPHA=0.05. The number of subjects at risk at a given time point is defined as the subjects who are still under follow-up and free of any event of any type at that time point; subjects who experience a competing event (death prior to the development of metastatic disease) are counted in the denominator up to their death time and leave the risk set thereafter, exactly as in the risk set underlying the Kaplan-Meier analysis. The 25th percentile, median and 75th percentile of the time to metastatic disease and their 95% confidence intervals will be derived by inverting the pointwise confidence limits of the cumulative incidence function (Brookmeyer–Crowley type interval), that is, the lower confidence limit of the <em>p</em>-th percentile is the first time at which the upper pointwise confidence limit of the CIF reaches <em>p</em>, and the upper confidence limit is the first time at which the lower pointwise confidence limit reaches <em>p</em>. Because the cumulative incidence function is an improper distribution function whose asymptote equals the eventual probability of metastatic disease, a percentile is not estimable when the plateau of the CIF is below the corresponding probability; in that case the percentile and its confidence interval will be reported as NE (not estimable), and the plateau value of the CIF together with the maximum follow-up time will be reported alongside. As a sensitivity analysis, the pointwise confidence intervals and the derived percentiles will be recomputed using the delta method variance estimator (ERROR=DELTA), and the resulting confidence limits will be compared with those of the primary analysis.
+  </p>
+  <p style="margin-bottom:0"><b>建议增补（KM 分支，明确到选项层面）：</b></p>
+  <p style="font-family:Georgia,serif;font-size:15px;line-height:1.9;background:var(--hl2);padding:16px 18px;border-radius:6px;margin-bottom:0">
+  The Kaplan–Meier estimates will be computed with METHOD=KM, for which the variance of the survivor function estimator is the Greenwood estimator by default; the log-log transformation (CONFTYPE=LOGLOG) will be applied to S(t) to obtain the pointwise 95% confidence intervals for the disease-free rates at 1, 2, 3, 4 and 5 years (ALPHA=0.05). The 25th percentile, median and 75th percentile of the time to metastatic disease and their 95% confidence intervals will be obtained from the LIFETEST quartile estimates, which are computed by the Brookmeyer–Crowley method with the log-log transformation (ALPHAQT=0.05).
+  </p>
+</div>
+
+<hr>
+
+<h2><span class="n">8</span>版本对齐：SAS 9.4M7（TS1M7）与本文件的选项口径</h2>
+
+<p class="lead">本项目的基准环境为 <b>SAS 9.4M7（TS1M7）</b>，随附 <b>SAS/STAT 15.2</b>。竞争风险相关功能并不受版本限制——它们自 SAS/STAT 14.1（随 SAS 9.4M3 发布）就已进入 <code>PROC LIFETEST</code>——因此本项目在功能层面没有障碍；真正需要对齐的是「文档口径」与「维护状态」两件事。</p>
+
+<h3>8.1 版本对应关系</h3>
+
+<table>
+  <caption><b>表 7</b>　SAS 9.4 维护版本与 SAS/STAT 版本的对应关系（节选与本项目相关的区间）。</caption>
+  <thead><tr><th style="width:24%">SAS 9.4 维护版本</th><th style="width:20%">SAS/STAT 版本</th><th style="width:56%">与本文件的关系</th></tr></thead>
+  <tbody>
+    <tr><td class="tw">9.4M3（TS1M3）</td><td class="tw">14.1</td><td><code>PROC LIFETEST</code> 首次支持竞争风险分析（<code>OUTCIF=</code>、<code>ERROR=</code>、Gray 检验）。<b>本文件所述功能的版本下限</b></td></tr>
+    <tr><td class="tw">9.4M6（TS1M6）</td><td class="tw">15.1</td><td><code>TIME</code> 语句的关注事件选项在文档中列作 <code>FAILCODE / EVENTCODE</code>，两个名字指向同一选项</td></tr>
+    <tr><td class="tw"><b>9.4M7（TS1M7）</b><br><span style="color:#8A8277">本项目基准</span></td><td class="tw"><b>15.2</b></td><td><b>本文件的引用口径：</b>选项取值、默认值与数据集列名均按此版本核对</td></tr>
+    <tr><td class="tw">9.4M8（TS1M8）<br>9.4M9（TS1M9）</td><td class="tw">15.3<br>15.4</td><td>不受本项目约束。本文件引用的选项定义在这些版本间未发生变化，但若日后升版仍应重新核对</td></tr>
+  </tbody>
+</table>
+
+<h3>8.2 本文件涉及的选项在 9.4M7 上的可用性</h3>
+
+<table>
+  <caption><b>表 8</b>　逐项确认。应用前仍建议用 <code>proc product_status</code> 实测一次。</caption>
+  <thead><tr><th style="width:30%">选项 / 功能</th><th style="width:20%">引入版本</th><th style="width:16%">9.4M7</th><th style="width:34%">用途与注意</th></tr></thead>
+  <tbody>
+    <tr><td class="tw">OUTCIF=</td><td>SAS/STAT 14.1</td><td>✓</td><td>CIF 点估计与逐点 CI 的取数入口</td></tr>
+    <tr><td class="tw">ERROR=AALEN | DELTA</td><td>SAS/STAT 14.1</td><td>✓</td><td>CIF 方差；默认 AALEN</td></tr>
+    <tr><td class="tw">EVENTCODE=</td><td>SAS/STAT 14.1</td><td>✓</td><td>指定关注事件；不指定则无 CIF</td></tr>
+    <tr><td class="tw">CONFTYPE=</td><td>早于 14.1</td><td>✓</td><td>变换选择；默认 LOGLOG，对 CIF 亦生效</td></tr>
+    <tr><td class="tw">NELSON / AALEN</td><td>早于 14.1</td><td>✓</td><td>累积风险的 Nelson–Aalen 估计（见 4.1 节）。<b>与 CIF 无关</b></td></tr>
+    <tr><td class="tw">CONFBAND=</td><td>早于 14.1</td><td>✓</td><td>仅向 <code>OUTSURV=</code> 写出同时置信带，不适用于 CIF</td></tr>
+    <tr><td class="tw">PLOTS=CIF / CIF(CL)</td><td>SAS/STAT 14.1</td><td>✓</td><td>CIF 图与逐点置信限图；不提供分位数标注</td></tr>
+  </tbody>
+</table>
+
+<h3>8.3 一条与交付有关的运维事实</h3>
+
+<div class="warn">
+  <b>9.4M7 已进入 Limited Support。</b>SAS 官方支持政策页面显示，SAS 9.4M7（TS1M7）自 <b>2025 年 9 月 1 日</b>起进入 Limited Support<sup class="r">8</sup>。这不影响本文件的任何计算方法与选项可用性，但有两层实践含义：① 该版本不再有常规 hot fix 供给，若遇到 <code>PROC LIFETEST</code> 层面的异常，可预期的处置是「升级维护版本」而非「等补丁」；② 若 QC 文档需要声明环境，<mark>建议把「SAS 9.4M7 / SAS/STAT 15.2，Limited Support」这一状态一并记录</mark>，便于审阅方在评估长期可维护性时看到完整信息。无论如何，应以 <code>proc product_status</code> 或 <code>proc setinit</code> 的实测输出为准。
+</div>
+
+<h2><span class="n">9</span>交付前核查清单</h2>
+
+<table>
+  <caption><b>表 9</b>　本项目 8 处 CI 相关的核查项与判据。</caption>
+  <thead><tr><th style="width:5%">#</th><th style="width:44%">核查项</th><th style="width:51%">判据 / 动作</th></tr></thead>
+  <tbody>
+    <tr><td class="tw">1</td><td>CIF 分支的 CI 方法是否已在 SAP 中写死</td><td>若仍为空白，按第 7 节增补；未增补前不得开始编程</td></tr>
+    <tr><td class="tw">2</td><td>本次分析实际使用的变换是否为预设值</td><td>执行块 3 的 <code>_null_</code> 回读步骤，核 LOG 中 <code>CONFTYPE</code> 与 <code>ALPHA</code>，不得凭代码阅读推断</td></tr>
+    <tr><td class="tw">3</td><td>恒等式 <code>1 − SURVIVAL = CIF + F₂(t)</code> 是否成立</td><td>在同一 <code>aval</code> 上比对 KM 与 CIF 两次运行的输出；这是方法实现是否走对的直接证据</td></tr>
+    <tr><td class="tw">4</td><td>分位数反演的自检是否通过</td><td>块 4.3 无 WARNING；且 <code>qL ≤ q̂ ≤ qU</code> 对每个分位数成立</td></tr>
+    <tr><td class="tw">5</td><td>KM 分支的分位数是否与 <code>Quartiles</code> 表一致</td><td>不一致时以 <code>Quartiles</code> 表为主口径，并把差异归因到端点约定后写进 QC 记录</td></tr>
+    <tr><td class="tw">6</td><td>「不可估」是否按规则呈现</td><td>平台值 &lt; p 时输出 NE，并同时给出平台值与最大随访时间</td></tr>
+    <tr><td class="tw">7</td><td>是否存在 <code>θ̂</code> 恰为 0 或 1 而使变换退化的时间点</td><td>逐时间点检查 <code>SDF_LCL/UCL</code>、<code>CIF_LCL/UCL</code> 是否缺失；若有，按 Shell 脚注约定呈现</td></tr>
+    <tr><td class="tw">8</td><td>基准 SAS 版本与选项口径是否已核对</td><td>本项目为 <b>9.4M7（TS1M7）/ SAS/STAT 15.2</b>，功能下限为 SAS/STAT 14.1（9.4M3）；用 <code>proc product_status</code> 或 <code>proc setinit</code> 实测，勿按程序头注释推断；维护状态见 8.3 节</td></tr>
+    <tr><td class="tw">9</td><td>Aalen 与 Delta 两套方差的差异量级</td><td>块 5.2 的 <code>se_ratio</code>、<code>w_ratio</code> 的分布；若差异不可忽略，升级为需申办方确认的决策项</td></tr>
+    <tr><td class="tw">10</td><td>风险集（分母）口径是否已核对</td><td>块 5.3 输出 0 行，即 <code>AtRisk</code> 与「观察时间 ≥ t」的推算值逐时点相等；t=0 那一行应等于分析集总人数。不等时先查分析集与分层定义，<b>不要去改风险集算法</b>（两条分支的风险集本来就是同一个，见 2.1 节）</td></tr>
+    <tr><td class="tw">11</td><td><code>NELSON</code> 是否被误用作「CI 方法」</td><td>本选项只改变累积风险的估计量（Nelson–Aalen 而非 <code>−log S(t)</code>），<b>不影响 S(t)、S(t) 的 CI 与分位数，也不作用于 CIF</b>；若程序里为「拿到某种 CI」而写了 <code>nelson</code>，属于误用，应删除</td></tr>
+  </tbody>
+</table>
+
+<h2 id="sec-refs"><span class="n">10</span>参考文献</h2>
+
+<ol class="refs">
+<li class="refgrp">A　软件文档（SAS 9.4M7 / SAS/STAT 15.2）</li>
+<li>SAS Institute Inc. <em>The LIFETEST Procedure</em> — PROC LIFETEST Statement（<code>ALPHA=</code>、<code>ALPHAQT=</code>、<code>CONFBAND=</code>、<code>CONFTYPE=</code>、<code>ERROR=</code>、<code>METHOD=</code>、<code>NELSON | AALEN</code>、<code>CIFVAR</code>、<code>OUTCIF=</code>、<code>OUTSURV=</code> 的取值与默认值）. SAS/STAT User's Guide. <a href="https://go.documentation.sas.com/api/docsets/statug/v_023/content/statug_lifetest_syntax01.htm">go.documentation.sas.com … /statug_lifetest_syntax01.htm</a></li>
+<li>SAS Institute Inc. <em>The LIFETEST Procedure</em> — <code>OUTCIF=</code> Data Set（<code>AtRisk</code>、<code>Event</code>、<code>AllEventTypes</code>、<code>CIF</code>、<code>CIF_STDERR</code>、<code>CIF_LCL</code>、<code>CIF_UCL</code>、<code>CONFTYPE</code>、<code>ALPHA</code>）. <a href="https://go.documentation.sas.com/api/docsets/statug/v_023/content/statug_lifetest_details33.htm">… /statug_lifetest_details33.htm</a></li>
+<li>SAS Institute Inc. <em>The LIFETEST Procedure</em> — <code>OUTSURV=</code> Data Set（<code>SURVIVAL</code>、<code>SDF_STDERR</code>、<code>SDF_LCL</code>、<code>SDF_UCL</code>、<code>_CENSOR_</code>、<code>HW_*</code>、<code>EP_*</code>；不含 at-risk 列）. <a href="https://go.documentation.sas.com/api/docsets/statug/v_023/content/statug_lifetest_details34.htm">… /statug_lifetest_details34.htm</a></li>
+<li>SAS Institute Inc. <em>The LIFETEST Procedure</em> — Analysis of Competing-Risks Data / Estimation of the CIF（Aalen 方差、delta 方差、风险集 <code>Y<sub>l</sub></code> 与全因 KM 的定义）. <a href="https://go.documentation.sas.com/api/docsets/statug/v_023/content/statug_lifetest_details25.htm">… /statug_lifetest_details25.htm</a></li>
+<li>SAS Institute Inc. <em>The LIFETEST Procedure</em> — ODS Table Names（<code>CIF</code>、<code>FailureSummary</code>、<code>GrayTest</code>、<code>Quartiles</code> 的适用范围）. <a href="https://go.documentation.sas.com/api/docsets/statug/v_023/content/statug_lifetest_toc.htm">… /statug_lifetest_toc.htm</a></li>
+<li>SAS Institute Inc. <em>The LIFETEST Procedure</em> — ODS Graphics（Table 7 图名清单与 <code>cifPlot</code>；Table 8 的 <code>Median</code> / <code>LowerMedian</code> / <code>UpperMedian</code> 仅属于生存曲线）. <a href="https://go.documentation.sas.com/api/docsets/statug/v_023/content/statug_lifetest_details86.htm">… /statug_lifetest_details86.htm</a></li>
+<li>SAS Institute Inc. <em>The LIFETEST Procedure</em> — TIME Statement（<code>FAILCODE / EVENTCODE</code>）. SAS/STAT 15.1 User's Guide. <a href="http://support.sas.com/documentation/onlinedoc/stat/151/lifetest.pdf">support.sas.com/documentation/onlinedoc/stat/151/lifetest.pdf</a></li>
+<li>SAS Institute Inc. SAS/STAT 与 SAS 9.4 维护版本的对应关系（<code>15.2 (SAS 9.4M7)</code>）与 SAS 9.4 各维护版本的支持级别（「SAS® 9.4M7 (TS1M7) … Limited Support began September 1, 2025」）. <a href="https://documentation.sas.com/doc/pl/bicdc/9.4/whatsdiff/p1256xdv3zwgmin18wusx0hib78k.htm">documentation.sas.com … Determining Your Update Path for SAS/STAT</a>；<a href="https://support.sas.com/en/technical-support/services-policies/sas-94-earlier.html">support.sas.com … SAS 9.4 &amp; Earlier Releases</a></li>
+
+<li class="refgrp">B　临床应用与报告规范（优先采用较新文献）</li>
+<li>Austin, P. C., Lee, D. S. &amp; Fine, J. P. Introduction to the analysis of survival data in the presence of competing risks. <em>Circulation</em> <b>133</b>, 601–609 (2016). doi:10.1161/CIRCULATIONAHA.115.017719 — 明确指出用 KM 的补集估计累积发生率会系统性偏高，且与竞争事件是否独立无关；附 R 与 SAS 代码</li>
+<li>Austin, P. C. &amp; Fine, J. P. Practical recommendations for reporting Fine–Gray model analyses for competing risk data. <em>Stat. Med.</em> <b>36</b>, 4391–4400 (2017). doi:10.1002/sim.7501</li>
+<li>Schuster, N. A., Hoogendijk, E. O., Kok, A. A. L., Twisk, J. W. R. &amp; Heymans, M. W. Ignoring competing events in the analysis of survival data may lead to biased results: a nonmathematical illustration of competing risk analysis. <em>J. Clin. Epidemiol.</em> <b>122</b>, 42–48 (2020). doi:10.1016/j.jclinepi.2020.03.004 — 以真实队列展示「KM 高估、CIF 应用」的全过程，适合作为对申办方的说明材料</li>
+<li>Wolbers, M. et al. Competing risks analyses: objectives and approaches. <em>Eur. Heart J.</em> <b>35</b>, 2936–2941 (2014). doi:10.1093/eurheartj/ehu131 — 其图注给出风险集的直白定义（「under follow-up and free of any event」）</li>
+<li>Latouche, A., Allignol, A., Beyersmann, J., Labopin, M. &amp; Fine, J. P. A competing risks analysis should report results on all cause-specific hazards and cumulative incidence functions. <em>J. Clin. Epidemiol.</em> <b>66</b>, 648–653 (2013). doi:10.1016/j.jclinepi.2012.09.017</li>
+<li>Andersen, P. K., Geskus, R. B., de Witte, T. &amp; Putter, H. Competing risks in epidemiology: possibilities and pitfalls. <em>Int. J. Epidemiol.</em> <b>41</b>, 861–870 (2012). doi:10.1093/ije/dyr213 — 给出「原因专属风险与累积发生率之间的一一对应关系丧失」这一核心论断</li>
+<li>ICH. <em>E9(R1) Addendum on Estimands and Sensitivity Analysis in Clinical Trials to the Guideline on Statistical Principles for Clinical Trials</em> (International Council for Harmonisation, adopted 20 November 2019) — 竞争事件属于 intercurrent event，其处置方式必须在估计目标中预先声明</li>
+
+<li class="refgrp">C　分位数与置信区间的构造（含方法原始出处）</li>
+<li>Brookmeyer, R. &amp; Crowley, J. A confidence interval for the median survival time. <em>Biometrics</em> <b>38</b>, 29–41 (1982). — 分位数 CI 反演法的原始出处</li>
+<li>Choudhury, J. B. Non-parametric confidence interval estimation for competing risks analysis: application to contraceptive data. <em>Stat. Med.</em> <b>21</b>, 1129–1144 (2002). doi:10.1002/sim.1070</li>
+<li>Braun, T. M. &amp; Yuan, Z. Comparing the small sample performance of several variance estimators under competing risks. <em>Stat. Med.</em> <b>26</b>, 1170–1180 (2007). doi:10.1002/sim.2661</li>
+<li>Peng, L. &amp; Fine, J. P. Nonparametric quantile inference with competing-risks data. <em>Biometrika</em> <b>94</b>, 735–744 (2007). doi:10.1093/biomet/asm059</li>
+<li>Lee, M. &amp; Fine, J. P. Inference for cumulative incidence quantiles via parametric and nonparametric approaches. <em>Stat. Med.</em> <b>30</b>, 3221–3235 (2011). doi:10.1002/sim.4349</li>
+<li>Beyersmann, J., Di Termini, S. &amp; Pauly, M. Weak convergence of the wild bootstrap for the Aalen–Johansen estimator of the cumulative incidence function of a competing risk. <em>Scand. J. Stat.</em> <b>40</b>, 387–402 (2013)</li>
+<li>Bluhmki, T. et al. A wild bootstrap approach for the Aalen–Johansen estimator. <em>Biometrics</em> <b>74</b>, 977–985 (2018)</li>
+<li>Aalen, O. O. &amp; Johansen, S. An empirical transition matrix for non-homogeneous Markov chains based on censored observations. <em>Scand. J. Stat.</em> <b>5</b>, 141–150 (1978). — Aalen–Johansen 估计量的原始出处</li>
+<li>Aalen, O. Nonparametric estimation of partial transition probabilities in multiple decrement models. <em>Ann. Stat.</em> <b>6</b>, 534–545 (1978). — SAS 文档将 <code>ERROR=AALEN</code> 的方差理论标注为「Aalen 1978」</li>
+<li>Marubini, E. &amp; Valsecchi, M. G. <em>Analysing Survival Data from Clinical Trials and Observational Studies</em> (Wiley, Chichester, 1995). — SAS 文档将 <code>ERROR=DELTA</code> 的方差标注为「Marubini and Valsecchi 1995」</li>
+<li>Andersen, P. K., Borgan, Ø., Gill, R. D. &amp; Keiding, N. <em>Statistical Models Based on Counting Processes</em> (Springer, New York, 1993). — 计数过程框架下风险集与可预测性的标准参考</li>
+<li>Putter, H., Fiocco, M. &amp; Geskus, R. B. Tutorial in biostatistics: competing risks and multi-state models. <em>Stat. Med.</em> <b>26</b>, 2389–2430 (2007)</li>
+<li>Gray, R. J. A class of K-sample tests for comparing the cumulative incidence of a competing risk. <em>Ann. Stat.</em> <b>16</b>, 1141–1154 (1988). — SAS <code>GrayTest</code> 表的依据</li>
+<li>Lin, D. Y. Non-parametric inference for cumulative incidence functions in competing risks studies. <em>Stat. Med.</em> <b>16</b>, 901–910 (1997)</li>
+<li>Allignol, A., Schumacher, M. &amp; Beyersmann, J. Empirical transition matrix of multi-state models: the <code>etm</code> package. <em>J. Stat. Softw.</em> <b>38</b>(4), 1–15 (2011)</li>
+<li>Guo, C. &amp; So, Y. Cause-specific analysis of competing risks using the PHREG procedure. In <em>Proceedings of the SAS Global Forum 2018 Conference</em>, Paper 2159-2018 (SAS Institute Inc., Cary, NC, 2018). <a href="https://support.sas.com/resources/papers/proceedings18/2159-2018.pdf">support.sas.com/resources/papers/proceedings18/2159-2018.pdf</a></li>
+</ol>
+
+<div class="foot">
+  <b>编制说明。</b>本文件的全部 SAS 选项定义、默认值与数据集列名均以 SAS 官方文档原文为准，逐条来源已列于参考文献第 1–7 条；<b>版本口径与维护状态见第 8 条</b>；风险集定义见第 4、11、13 条；KM 的偏偏方向与量级见第 9、10、13 条；分位数反演见第 16 条与第 1 条；分位数推断的方法学依据第 19、20 条；方差估计量的取舍依据第 17、18、24、25 条；重抽样方法见第 21、22 条。文中未引用任何第三方程序作为实现依据，第 6 节代码为按上述文档独立编写。所有引用的原文表述均标注了其所在小节，便于逐处核对。<mark>第 3.2 节末尾的分位数 CI 对照表为示例性引用，未编入序号。</mark>
+</div>
+
+  </main>
+
+  <aside class="rail">
+    <div class="rail-in">
+      <div class="rail-h">本页内容</div>
+      <nav class="toc toc-rail" id="toc-rail"></nav>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+(function(){
+  var main = document.querySelector('.main');
+  var sideNav = document.getElementById('toc-side');
+  var railNav = document.getElementById('toc-rail');
+  var side = document.getElementById('side');
+  var mb = document.getElementById('menubtn');
+  var pb = document.getElementById('printbtn');
+  if(pb) pb.addEventListener('click', function(){ window.print(); });
+  if(mb) mb.addEventListener('click', function(){ side.classList.toggle('open'); });
+  sideNav.addEventListener('click', function(e){
+    if(e.target.tagName === 'A' && window.innerWidth <= 860) side.classList.remove('open');
+  });
+
+  var heads = [].slice.call(main.querySelectorAll('h2, h3'));
+  var secs = [], subs = [], n = 0;
+  heads.forEach(function(h, i){
+    if(!h.id) h.id = 'h' + (i + 1);
+    var numEl = h.querySelector('.n');
+    var num = numEl ? numEl.textContent.trim() : '';
+    var c = h.cloneNode(true), nn = c.querySelector('.n');
+    if(nn) nn.parentNode.removeChild(nn);
+    var txt = c.textContent.replace(/\s+/g, ' ').trim();
+    var a = document.createElement('a');
+    a.href = '#' + h.id;
+    if(h.tagName === 'H2'){
+      n++;
+      a.className = 'lv1';
+      var it = document.createElement('i'); it.textContent = num; a.appendChild(it);
+      var sp = document.createElement('span'); sp.textContent = txt; a.appendChild(sp);
+      sideNav.appendChild(a);
+      secs.push({el:h, link:a, sec:n});
+    } else {
+      a.className = 'lv2';
+      a.textContent = txt;
+      railNav.appendChild(a);
+      subs.push({el:h, link:a, sec:n});
+    }
+  });
+  if(!subs.length) railNav.innerHTML = '<a class="lv2" href="#top">本章无子标题</a>';
+
+  function y(h){ return h.getBoundingClientRect().top + window.scrollY; }
+  function sync(){
+    var t = window.scrollY + 96, cur = secs.length ? secs[0] : null;
+    secs.forEach(function(o){ if(y(o.el) <= t) cur = o; });
+    secs.forEach(function(o){ o.link.classList.toggle('on', o === cur); });
+    if(!cur) return;
+    var pool = subs.filter(function(o){ return o.sec === cur.sec; });
+    subs.forEach(function(o){
+      o.link.style.display = (o.sec === cur.sec) ? '' : 'none';
+      o.link.classList.remove('on');
+    });
+    if(!pool.length) return;
+    var cs = pool[0];
+    pool.forEach(function(o){ if(y(o.el) <= t) cs = o; });
+    cs.link.classList.add('on');
+  }
+  window.addEventListener('scroll', sync, {passive:true});
+  window.addEventListener('resize', sync);
+  window.addEventListener('load', sync);
+  sync();
+})();
+</script>
+</body>
+</html>
