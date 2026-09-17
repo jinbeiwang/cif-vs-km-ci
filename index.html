@@ -1005,7 +1005,7 @@ run;</code></pre>
 <p>下面 8 行就是 <code>OUTCIF=</code> 等价形态（列名已归一化：<code>F</code> 即 <code>CIF</code>、<code>F_lcl</code> 即 <code>CIF_LCL</code>、<code>F_ucl</code> 即 <code>CIF_UCL</code>）。时间单位取「月」便于读数。注意三条序列都<b>非降</b>，这是反演成立的前提；首行 t=0 的缺失 CIF 行已在上游剔除。</p>
 
 <table>
-  <caption><b>表 8</b>　反演示例的输入 CIF 阶梯函数（单组 <code>Demo</code>，时间单位：月）</caption>
+  <caption><b>表 10</b>　反演示例的输入 CIF 阶梯函数（单组 <code>Demo</code>，时间单位：月）</caption>
   <thead>
     <tr><th>time</th><th>F（CIF）</th><th>F_lcl（下限）</th><th>F_ucl（上限）</th></tr>
   </thead>
@@ -1136,7 +1136,7 @@ title;</code></pre>
 <p>以 <code>p = 0.25</code> 为例，逐行扫：CIF 在 t=4 才首次 ≥ 0.25（<code>F(4)=0.27</code>）→ <code>q_hat=4</code>；置信上限早在 t=2 就 ≥ 0.25（<code>F_ucl(2)=0.34</code>）→ <code>q_lcl=2</code>；置信下限要熬到 t=8 才 ≥ 0.25（<code>F_lcl(8)=0.26</code>）→ <code>q_ucl=8</code>。三端 <code>2 ≤ 4 ≤ 8</code> 正是「F 递增时置信限换边」的直观体现。完整三档结果如下（已用独立 Python 实现逐位复核，与 SAS 输出一致）：</p>
 
 <table>
-  <caption><b>表 9</b>　反演最终结果（时间单位：月）。<code>NE</code> = not estimable（平台值未达 p）</caption>
+  <caption><b>表 11</b>　反演最终结果（时间单位：月）。<code>NE</code> = not estimable（平台值未达 p）</caption>
   <thead>
     <tr><th>p</th><th>q_hat</th><th>q_lcl</th><th>q_ucl</th><th>q_prev</th><th>F(q_hat)</th><th>chk_order</th><th>chk_hit</th><th>说明</th></tr>
   </thead>
