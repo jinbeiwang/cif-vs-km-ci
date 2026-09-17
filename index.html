@@ -476,45 +476,103 @@ qU = inf{ t : l(t) ≥ p }     ← 由置信<b>下限</b>首次触及 p 确定</
 <p>这一构造即 Brookmeyer 与 Crowley 提出的方法<sup class="r">11</sup>，也正是 SAS 在 <code>Quartiles</code> 表中给出分位数 CI 的依据：<code>CONFTYPE=</code> 的文档写得很清楚，该选项除了作用于生存函数的逐点 CI 与置信带之外，「in addition to the confidence intervals for <b>the quartiles of the survival times</b>」<sup class="r">1</sup>。<mark>换言之，SAP 对 KM 分支写明的「Brookmeyer–Crowley + log-log」，在 SAS 中就是 <code>CONFTYPE=LOGLOG</code> 下的 <code>Quartiles</code> 表；而同一个反演逻辑可以逐字搬到 CIF 上，只是把 <code>S</code> 换成 <code>F₁</code>。</mark></p>
 
 <figure>
-<svg viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Brookmeyer-Crowley 反演示意">
-  <rect x="0" y="0" width="680" height="320" fill="#FFFFFF"/>
-  <text x="24" y="24" font-family="Georgia,serif" font-size="13.6" font-weight="700" fill="#5B4C9A">反演示意：以 Median 对应的 p = 0.50 为例</text>
-  <!-- axes -->
-  <line x1="70" y1="272" x2="640" y2="272" stroke="#D9D0BE" stroke-width="1.2"/>
-  <line x1="70" y1="272" x2="70" y2="48" stroke="#D9D0BE" stroke-width="1.2"/>
-  <text x="612" y="292" font-family="sans-serif" font-size="11.5" fill="#564F46">时间</text>
-  <text x="30" y="52" font-family="sans-serif" font-size="11.5" fill="#564F46">F(t)</text>
-  <!-- p level -->
-  <line x1="70" y1="128" x2="640" y2="128" stroke="#E2B93B" stroke-width="1.6" stroke-dasharray="6 4"/>
-  <text x="76" y="122" font-family="monospace" font-size="11.5" fill="#8A6A12">p = 0.50</text>
-  <!-- CIF step -->
-  <path d="M70 272 L118 272 L118 250 L166 250 L166 222 L214 222 L214 186 L262 186 L262 150 L310 150 L310 124 L358 124 L358 104 L406 104 L406 92 L454 92 L454 84 L502 84 L502 78 L640 78"
-        fill="none" stroke="#5B4C9A" stroke-width="2.6"/>
-  <!-- upper limit -->
-  <path d="M70 272 L118 272 L118 236 L166 236 L166 200 L214 200 L214 158 L262 158 L262 112 L310 112 L310 84 L358 84 L358 62 L406 62 L406 52 L454 52 L454 48 L502 48 L502 46 L640 46"
-        fill="none" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/>
-  <!-- lower limit -->
-  <path d="M70 272 L118 272 L118 262 L166 262 L166 244 L214 244 L214 216 L262 216 L262 190 L310 190 L310 168 L358 168 L358 152 L406 152 L406 142 L454 142 L454 134 L502 134 L502 130 L640 130"
+<svg viewBox="0 0 680 372" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Brookmeyer-Crowley 反演示意：25 分位数对应 t=4">
+  <rect x="0" y="0" width="680" height="372" fill="#FFFFFF"/>
+  <text x="24" y="24" font-family="Georgia,serif" font-size="13.6" font-weight="700" fill="#5B4C9A">反演示意：25 分位数（p = 0.25）如何对应到时间点 t = 4</text>
+  <!-- 横轴（时间 t，单位月）与纵轴（累积发生率 F(t)） -->
+  <line x1="78" y1="290" x2="636" y2="290" stroke="#D9D0BE" stroke-width="1.4"/>
+  <line x1="78" y1="290" x2="78" y2="56" stroke="#D9D0BE" stroke-width="1.4"/>
+  <text x="622" y="344" font-family="sans-serif" font-size="12" fill="#564F46">时间 t（月）</text>
+  <text x="22" y="60" font-family="sans-serif" font-size="12" fill="#564F46">F(t)</text>
+  <!-- 横轴刻度：t = 1..8，每个事件时点一个刻度，标出具体月份 -->
+  <g font-family="monospace" font-size="12" fill="#4F4C46" text-anchor="middle">
+    <line x1="148" y1="290" x2="148" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="148" y="312">1</text>
+    <line x1="218" y1="290" x2="218" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="218" y="312">2</text>
+    <line x1="287" y1="290" x2="287" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="287" y="312">3</text>
+    <line x1="357" y1="290" x2="357" y2="296" stroke="#5B4C9A" stroke-width="2"/>
+    <text x="357" y="312" fill="#5B4C9A" font-weight="700">4</text>
+    <line x1="427" y1="290" x2="427" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="427" y="312">5</text>
+    <line x1="497" y1="290" x2="497" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="497" y="312">6</text>
+    <line x1="566" y1="290" x2="566" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="566" y="312">7</text>
+    <line x1="636" y1="290" x2="636" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="636" y="312">8</text>
+  </g>
+  <!-- 纵轴刻度与网格：F = 0 .. 0.7，步长 0.1 -->
+  <g font-family="monospace" font-size="11" fill="#8B877F" text-anchor="end">
+    <line x1="72" y1="290" x2="636" y2="290" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="294">0</text>
+    <line x1="72" y1="257" x2="636" y2="257" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="261">0.1</text>
+    <line x1="72" y1="223" x2="636" y2="223" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="227">0.2</text>
+    <line x1="72" y1="190" x2="636" y2="190" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="194">0.3</text>
+    <line x1="72" y1="156" x2="636" y2="156" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="160">0.4</text>
+    <line x1="72" y1="123" x2="636" y2="123" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="127">0.5</text>
+    <line x1="72" y1="89" x2="636" y2="89" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="93">0.6</text>
+    <line x1="72" y1="56" x2="636" y2="56" stroke="#EFECE3" stroke-width="0.8"/>
+    <text x="70" y="60">0.7</text>
+  </g>
+  <!-- 目标水平 p = 0.25（金色虚线，标注 25%） -->
+  <line x1="78" y1="206" x2="636" y2="206" stroke="#E2B93B" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <text x="82" y="200" font-family="monospace" font-size="12" fill="#8A6A12" font-weight="700">p = 25% (0.25)</text>
+  <!-- 逐点下限 CIF_LCL（橙虚线） -->
+  <path d="M78 290 L148 290 L148 283 L218 283 L218 270 L287 270 L287 257 L357 257 L357 243 L427 243 L427 230 L497 230 L497 220 L566 220 L566 210 L636 210 L636 203"
         fill="none" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/>
-  <!-- intersections -->
-  <circle cx="310" cy="128" r="4.4" fill="#FFFFFF" stroke="#5B4C9A" stroke-width="2.2"/>
-  <circle cx="262" cy="128" r="4.4" fill="#FFFFFF" stroke="#2E4E8F" stroke-width="2.2"/>
-  <circle cx="502" cy="128" r="4.4" fill="#FFFFFF" stroke="#C4623A" stroke-width="2.2"/>
-  <line x1="310" y1="128" x2="310" y2="272" stroke="#5B4C9A" stroke-width="1" stroke-dasharray="3 3"/>
-  <line x1="262" y1="128" x2="262" y2="272" stroke="#2E4E8F" stroke-width="1" stroke-dasharray="3 3"/>
-  <line x1="502" y1="128" x2="502" y2="272" stroke="#C4623A" stroke-width="1" stroke-dasharray="3 3"/>
-  <text x="288" y="292" font-family="monospace" font-size="11.5" fill="#5B4C9A">q̂</text>
-  <text x="234" y="292" font-family="monospace" font-size="11.5" fill="#2E4E8F">qL</text>
-  <text x="496" y="292" font-family="monospace" font-size="11.5" fill="#C4623A">qU</text>
-  <!-- legend -->
+  <!-- 逐点上限 CIF_UCL（蓝虚线） -->
+  <path d="M78 290 L148 290 L148 216 L218 216 L218 176 L287 176 L287 153 L357 153 L357 130 L427 130 L427 106 L497 106 L497 89 L566 89 L566 76 L636 76 L636 66"
+        fill="none" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/>
+  <!-- CIF 点估计 F̂(t)（紫实线，最粗） -->
+  <path d="M78 290 L148 290 L148 263 L218 263 L218 240 L287 240 L287 220 L357 220 L357 200 L427 200 L427 183 L497 183 L497 170 L566 170 L566 160 L636 160 L636 153"
+        fill="none" stroke="#5B4C9A" stroke-width="2.8"/>
+  <!-- F 点估计在各事件时点的累计比例（%），重点高亮 t=4 -->
+  <g font-family="monospace" font-size="10.5" fill="#8B877F">
+    <text x="152" y="286" text-anchor="start">8%</text>
+    <text x="222" y="263" text-anchor="start">15%</text>
+    <text x="291" y="243" text-anchor="start">21%</text>
+    <text x="361" y="223" text-anchor="start" fill="#5B4C9A" font-size="12.5" font-weight="700">27%</text>
+    <text x="431" y="206" text-anchor="start">32%</text>
+    <text x="501" y="193" text-anchor="start">36%</text>
+    <text x="570" y="183" text-anchor="start">39%</text>
+    <text x="640" y="176" text-anchor="start">41%</text>
+  </g>
+  <!-- 三个反演交点（落在 p=0.25 线上） -->
+  <circle cx="357" cy="206" r="5" fill="#FFFFFF" stroke="#5B4C9A" stroke-width="2.4"/>
+  <circle cx="218" cy="206" r="4.4" fill="#FFFFFF" stroke="#2E4E8F" stroke-width="2.2"/>
+  <circle cx="636" cy="206" r="4.4" fill="#FFFFFF" stroke="#C4623A" stroke-width="2.2"/>
+  <!-- 交点到横轴的投影线，标注 qL / q̂ / qU 的具体取值 -->
+  <line x1="357" y1="206" x2="357" y2="290" stroke="#5B4C9A" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <line x1="218" y1="206" x2="218" y2="290" stroke="#2E4E8F" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="636" y1="206" x2="636" y2="290" stroke="#C4623A" stroke-width="1" stroke-dasharray="3 3"/>
+  <g font-family="monospace" font-size="12" text-anchor="middle">
+    <text x="218" y="330" fill="#2E4E8F" font-weight="700">qL = 2</text>
+    <text x="357" y="330" fill="#5B4C9A" font-weight="700">q̂ = 4</text>
+    <text x="636" y="330" fill="#C4623A" font-weight="700">qU = 8</text>
+  </g>
+  <!-- t=4 处的核心结论标注：21% < 25% ≤ 27%，右连续取 t=4 -->
   <g font-family="sans-serif" font-size="11.6">
-    <line x1="404" y1="196" x2="436" y2="196" stroke="#5B4C9A" stroke-width="2.6"/><text x="444" y="200" fill="#564F46">CIF 点估计 F̂(t)</text>
-    <line x1="404" y1="216" x2="436" y2="216" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="220" fill="#564F46">逐点上限 CIF_UCL</text>
-    <line x1="404" y1="236" x2="436" y2="236" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="240" fill="#564F46">逐点下限 CIF_LCL</text>
-    <text x="404" y="260" fill="#8A8277">虚线均为同一次 PROC LIFETEST 的输出</text>
+    <line x1="287" y1="220" x2="357" y2="200" stroke="#8A8277" stroke-width="1"/>
+    <text x="262" y="245" fill="#564F46">F(3)=21% &lt; 25%</text>
+    <text x="262" y="262" fill="#564F46">F(4)=27% ≥ 25%</text>
+    <text x="262" y="279" fill="#5B4C9A" font-weight="700">⇒ 25% 分位数落在 t=4</text>
+  </g>
+  <!-- 图例 -->
+  <g font-family="sans-serif" font-size="11.6">
+    <line x1="404" y1="66" x2="436" y2="66" stroke="#5B4C9A" stroke-width="2.8"/><text x="444" y="70" fill="#564F46">CIF 点估计 F̂(t)</text>
+    <line x1="404" y1="86" x2="436" y2="86" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="90" fill="#564F46">逐点上限 CIF_UCL</text>
+    <line x1="404" y1="106" x2="436" y2="106" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="110" fill="#564F46">逐点下限 CIF_LCL</text>
   </g>
 </svg>
-<figcaption><b>图 2</b>　Brookmeyer–Crowley 反演示意。<b>点估计</b> <code>q̂</code> 取点估计阶梯首次达到 <code>p</code> 的时间；<b>下界</b> <code>qL</code> 由置信上限首次触及 <code>p</code> 的时间给出（上限阶梯抬升更快，故落在更早的时间点）；<b>上界</b> <code>qU</code> 由置信下限首次触及 <code>p</code> 的时间给出。三者的先后次序 <code>qL ≤ q̂ ≤ qU</code> 来自阶梯的单调性，可直接作为实现正确性的自检条件。</figcaption>
+<figcaption><b>图 2</b>　Brookmeyer–Crowley 反演示意（数据即第 6.1 节表 10 的固定示例）。横轴为事件时点 t（月，1–8），纵轴为累积发生率 F(t)，三条阶梯分别为点估计 <code>F̂(t)</code>（紫）、逐点置信上限（蓝）与下限（橙），虚线水平线为目标水平 <code>p = 25%</code>。<b>点估计</b>：<code>F(3)=21% &lt; 25%</code>、<code>F(4)=27% ≥ 25%</code>，故按右连续定义 <code>q̂ = inf{ t : F(t) ≥ 25% } = 4</code>，即<b>25% 分位数对应 t=4</b>；<b>下界</b> <code>qL=2</code> 由置信上限首次触及 25%（<code>U(2)=34%</code>）给出；<b>上界</b> <code>qU=8</code> 由置信下限首次触及 25%（<code>L(8)=26%</code>）给出。三者的先后次序 <code>qL ≤ q̂ ≤ qU</code>（即 <code>2 ≤ 4 ≤ 8</code>）来自阶梯的单调性，可直接作为实现正确性的自检条件。</figcaption>
 </figure>
 
 <p>实现时有两点需要写进程序注释。第一，<code>l(t)</code>、<code>u(t)</code> 与 <code>F̂(t)</code> 必须来自<b>同一次</b> <code>PROC LIFETEST</code> 调用、同一组选项，否则三个阶梯不自洽，<code>qL ≤ q̂ ≤ qU</code> 可能被破坏。第二，点估计与上下界在判据上统一采用「首次达到或超过」的写法，即可保证三者的单调次序；严格的 <code>&gt;</code> 与 <code>≥</code> 之别只可能在阶梯跳变恰好落在 <code>p</code> 上的极罕见情形下产生一个时间点的差异，SAS 内建 <code>Quartiles</code> 表以自身实现为准，因此<b>KM 分支应当以 <code>Quartiles</code> 表作为主口径，把自行反演的结果作为交叉核对</b>；CIF 分支则没有这个选择，只能由自行反演给出，并在 SAP 中把规则写死。</p>
