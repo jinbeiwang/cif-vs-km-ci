@@ -480,10 +480,10 @@ qU = inf{ t : l(t) ≥ p }     ← 由置信<b>下限</b>首次触及 p 确定</
   <rect x="0" y="0" width="680" height="372" fill="#FFFFFF"/>
   <text x="24" y="24" font-family="Georgia,serif" font-size="13.6" font-weight="700" fill="#5B4C9A">反演示意：25 分位数（p = 0.25）如何对应到时间点 t = 4</text>
   <!-- 横轴（时间 t，单位月）与纵轴（累积发生率 F(t)） -->
-  <line x1="78" y1="290" x2="636" y2="290" stroke="#D9D0BE" stroke-width="1.4"/>
+  <line x1="78" y1="290" x2="628" y2="290" stroke="#D9D0BE" stroke-width="1.4"/>
   <line x1="78" y1="290" x2="78" y2="56" stroke="#D9D0BE" stroke-width="1.4"/>
-  <text x="622" y="344" font-family="sans-serif" font-size="12" fill="#564F46">时间 t（月）</text>
-  <text x="22" y="60" font-family="sans-serif" font-size="12" fill="#564F46">F(t)</text>
+  <text x="588" y="344" font-family="sans-serif" font-size="12" fill="#564F46">时间 t（月）</text>
+  <text x="20" y="48" font-family="sans-serif" font-size="12" fill="#564F46">F(t)</text>
   <!-- 横轴刻度：t = 1..8，每个事件时点一个刻度，标出具体月份 -->
   <g font-family="monospace" font-size="12" fill="#4F4C46" text-anchor="middle">
     <line x1="148" y1="290" x2="148" y2="296" stroke="#B4B2A9" stroke-width="1"/>
@@ -500,76 +500,75 @@ qU = inf{ t : l(t) ≥ p }     ← 由置信<b>下限</b>首次触及 p 确定</
     <text x="497" y="312">6</text>
     <line x1="566" y1="290" x2="566" y2="296" stroke="#B4B2A9" stroke-width="1"/>
     <text x="566" y="312">7</text>
-    <line x1="636" y1="290" x2="636" y2="296" stroke="#B4B2A9" stroke-width="1"/>
-    <text x="636" y="312">8</text>
+    <line x1="628" y1="290" x2="628" y2="296" stroke="#B4B2A9" stroke-width="1"/>
+    <text x="628" y="312">8</text>
   </g>
   <!-- 纵轴刻度与网格：F = 0 .. 0.7，步长 0.1 -->
   <g font-family="monospace" font-size="11" fill="#8B877F" text-anchor="end">
-    <line x1="72" y1="290" x2="636" y2="290" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="290" x2="628" y2="290" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="294">0</text>
-    <line x1="72" y1="257" x2="636" y2="257" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="257" x2="628" y2="257" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="261">0.1</text>
-    <line x1="72" y1="223" x2="636" y2="223" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="223" x2="628" y2="223" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="227">0.2</text>
-    <line x1="72" y1="190" x2="636" y2="190" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="190" x2="628" y2="190" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="194">0.3</text>
-    <line x1="72" y1="156" x2="636" y2="156" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="156" x2="628" y2="156" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="160">0.4</text>
-    <line x1="72" y1="123" x2="636" y2="123" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="123" x2="628" y2="123" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="127">0.5</text>
-    <line x1="72" y1="89" x2="636" y2="89" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="89" x2="628" y2="89" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="93">0.6</text>
-    <line x1="72" y1="56" x2="636" y2="56" stroke="#EFECE3" stroke-width="0.8"/>
+    <line x1="72" y1="56" x2="628" y2="56" stroke="#EFECE3" stroke-width="0.8"/>
     <text x="70" y="60">0.7</text>
   </g>
   <!-- 目标水平 p = 0.25（金色虚线，标注 25%） -->
-  <line x1="78" y1="206" x2="636" y2="206" stroke="#E2B93B" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <line x1="78" y1="206" x2="628" y2="206" stroke="#E2B93B" stroke-width="1.6" stroke-dasharray="6 4"/>
   <text x="82" y="200" font-family="monospace" font-size="12" fill="#8A6A12" font-weight="700">p = 25% (0.25)</text>
   <!-- 逐点下限 CIF_LCL（橙虚线） -->
-  <path d="M78 290 L148 290 L148 283 L218 283 L218 270 L287 270 L287 257 L357 257 L357 243 L427 243 L427 230 L497 230 L497 220 L566 220 L566 210 L636 210 L636 203"
+  <path d="M78 290 L148 290 L148 283 L218 283 L218 270 L287 270 L287 257 L357 257 L357 243 L427 243 L427 230 L497 230 L497 220 L566 220 L566 210 L628 210 L628 203"
         fill="none" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/>
   <!-- 逐点上限 CIF_UCL（蓝虚线） -->
-  <path d="M78 290 L148 290 L148 216 L218 216 L218 176 L287 176 L287 153 L357 153 L357 130 L427 130 L427 106 L497 106 L497 89 L566 89 L566 76 L636 76 L636 66"
+  <path d="M78 290 L148 290 L148 216 L218 216 L218 176 L287 176 L287 153 L357 153 L357 130 L427 130 L427 106 L497 106 L497 89 L566 89 L566 76 L628 76 L628 66"
         fill="none" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/>
   <!-- CIF 点估计 F̂(t)（紫实线，最粗） -->
-  <path d="M78 290 L148 290 L148 263 L218 263 L218 240 L287 240 L287 220 L357 220 L357 200 L427 200 L427 183 L497 183 L497 170 L566 170 L566 160 L636 160 L636 153"
+  <path d="M78 290 L148 290 L148 263 L218 263 L218 240 L287 240 L287 220 L357 220 L357 200 L427 200 L427 183 L497 183 L497 170 L566 170 L566 160 L628 160 L628 153"
         fill="none" stroke="#5B4C9A" stroke-width="2.8"/>
-  <!-- F 点估计在各事件时点的累计比例（%），重点高亮 t=4 -->
+  <!-- F 点估计在各事件时点的累计比例（%），标在曲线跳变点上方，避开曲线与交点 -->
   <g font-family="monospace" font-size="10.5" fill="#8B877F">
-    <text x="152" y="286" text-anchor="start">8%</text>
-    <text x="222" y="263" text-anchor="start">15%</text>
-    <text x="291" y="243" text-anchor="start">21%</text>
-    <text x="361" y="223" text-anchor="start" fill="#5B4C9A" font-size="12.5" font-weight="700">27%</text>
-    <text x="431" y="206" text-anchor="start">32%</text>
-    <text x="501" y="193" text-anchor="start">36%</text>
-    <text x="570" y="183" text-anchor="start">39%</text>
-    <text x="640" y="176" text-anchor="start">41%</text>
+    <text x="152" y="282" text-anchor="start">8%</text>
+    <text x="222" y="259" text-anchor="start">15%</text>
+    <text x="291" y="239" text-anchor="start">21%</text>
+    <text x="362" y="216" text-anchor="start" fill="#5B4C9A" font-size="12.5" font-weight="700">27%</text>
+    <text x="431" y="200" text-anchor="start">32%</text>
+    <text x="501" y="186" text-anchor="start">36%</text>
+    <text x="570" y="176" text-anchor="start">39%</text>
+    <text x="606" y="168" text-anchor="start">41%</text>
   </g>
   <!-- 三个反演交点（落在 p=0.25 线上） -->
   <circle cx="357" cy="206" r="5" fill="#FFFFFF" stroke="#5B4C9A" stroke-width="2.4"/>
   <circle cx="218" cy="206" r="4.4" fill="#FFFFFF" stroke="#2E4E8F" stroke-width="2.2"/>
-  <circle cx="636" cy="206" r="4.4" fill="#FFFFFF" stroke="#C4623A" stroke-width="2.2"/>
+  <circle cx="628" cy="206" r="4.4" fill="#FFFFFF" stroke="#C4623A" stroke-width="2.2"/>
   <!-- 交点到横轴的投影线，标注 qL / q̂ / qU 的具体取值 -->
   <line x1="357" y1="206" x2="357" y2="290" stroke="#5B4C9A" stroke-width="1.2" stroke-dasharray="3 3"/>
   <line x1="218" y1="206" x2="218" y2="290" stroke="#2E4E8F" stroke-width="1" stroke-dasharray="3 3"/>
-  <line x1="636" y1="206" x2="636" y2="290" stroke="#C4623A" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="628" y1="206" x2="628" y2="290" stroke="#C4623A" stroke-width="1" stroke-dasharray="3 3"/>
   <g font-family="monospace" font-size="12" text-anchor="middle">
     <text x="218" y="330" fill="#2E4E8F" font-weight="700">qL = 2</text>
     <text x="357" y="330" fill="#5B4C9A" font-weight="700">q̂ = 4</text>
-    <text x="636" y="330" fill="#C4623A" font-weight="700">qU = 8</text>
+    <text x="628" y="330" fill="#C4623A" font-weight="700">qU = 8</text>
   </g>
-  <!-- t=4 处的核心结论标注：21% < 25% ≤ 27%，右连续取 t=4 -->
+  <!-- t=4 处的核心结论标注：21% < 25% ≤ 27%，右连续取 t=4（放在左上空白区，避开曲线） -->
   <g font-family="sans-serif" font-size="11.6">
-    <line x1="287" y1="220" x2="357" y2="200" stroke="#8A8277" stroke-width="1"/>
-    <text x="262" y="245" fill="#564F46">F(3)=21% &lt; 25%</text>
-    <text x="262" y="262" fill="#564F46">F(4)=27% ≥ 25%</text>
-    <text x="262" y="279" fill="#5B4C9A" font-weight="700">⇒ 25% 分位数落在 t=4</text>
+    <text x="24" y="120" fill="#564F46">F(3) = 21% &lt; 25%</text>
+    <text x="24" y="138" fill="#564F46">F(4) = 27% ≥ 25%</text>
+    <text x="24" y="160" fill="#5B4C9A" font-weight="700">⇒ 25% 分位数落在 t = 4</text>
   </g>
-  <!-- 图例 -->
+  <!-- 图例（左对齐，右端留白，避免截断） -->
   <g font-family="sans-serif" font-size="11.6">
-    <line x1="404" y1="66" x2="436" y2="66" stroke="#5B4C9A" stroke-width="2.8"/><text x="444" y="70" fill="#564F46">CIF 点估计 F̂(t)</text>
-    <line x1="404" y1="86" x2="436" y2="86" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="90" fill="#564F46">逐点上限 CIF_UCL</text>
-    <line x1="404" y1="106" x2="436" y2="106" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/><text x="444" y="110" fill="#564F46">逐点下限 CIF_LCL</text>
+    <line x1="320" y1="66" x2="348" y2="66" stroke="#5B4C9A" stroke-width="2.8"/><text x="356" y="70" fill="#564F46">CIF 点估计 F̂(t)</text>
+    <line x1="320" y1="86" x2="348" y2="86" stroke="#2E4E8F" stroke-width="1.7" stroke-dasharray="5 3"/><text x="356" y="90" fill="#564F46">逐点上限 CIF_UCL</text>
+    <line x1="320" y1="106" x2="348" y2="106" stroke="#C4623A" stroke-width="1.7" stroke-dasharray="5 3"/><text x="356" y="110" fill="#564F46">逐点下限 CIF_LCL</text>
   </g>
 </svg>
 <figcaption><b>图 2</b>　Brookmeyer–Crowley 反演示意（数据即第 6.1 节表 10 的固定示例）。横轴为事件时点 t（月，1–8），纵轴为累积发生率 F(t)，三条阶梯分别为点估计 <code>F̂(t)</code>（紫）、逐点置信上限（蓝）与下限（橙），虚线水平线为目标水平 <code>p = 25%</code>。<b>点估计</b>：<code>F(3)=21% &lt; 25%</code>、<code>F(4)=27% ≥ 25%</code>，故按右连续定义 <code>q̂ = inf{ t : F(t) ≥ 25% } = 4</code>，即<b>25% 分位数对应 t=4</b>；<b>下界</b> <code>qL=2</code> 由置信上限首次触及 25%（<code>U(2)=34%</code>）给出；<b>上界</b> <code>qU=8</code> 由置信下限首次触及 25%（<code>L(8)=26%</code>）给出。三者的先后次序 <code>qL ≤ q̂ ≤ qU</code>（即 <code>2 ≤ 4 ≤ 8</code>）来自阶梯的单调性，可直接作为实现正确性的自检条件。</figcaption>
@@ -1063,19 +1062,19 @@ run;</code></pre>
 <p>下面 8 行就是 <code>OUTCIF=</code> 等价形态（列名已归一化：<code>F</code> 即 <code>CIF</code>、<code>F_lcl</code> 即 <code>CIF_LCL</code>、<code>F_ucl</code> 即 <code>CIF_UCL</code>）。时间单位取「月」便于读数。注意三条序列都<b>非降</b>，这是反演成立的前提；首行 t=0 的缺失 CIF 行已在上游剔除。</p>
 
 <table>
-  <caption><b>表 10</b>　反演示例的输入 CIF 阶梯函数（单组 <code>Demo</code>，时间单位：月）</caption>
+  <caption><b>表 10</b>　反演示例的输入 CIF 阶梯函数（单组 <code>Demo</code>，时间单位：月）。最右列为 p = 25% 时的反演过程：标记哪条曲线首次达到 25%</caption>
   <thead>
-    <tr><th>time</th><th>F（CIF）</th><th>F_lcl（下限）</th><th>F_ucl（上限）</th></tr>
+    <tr><th>time</th><th>F（CIF）</th><th>F_lcl（下限）</th><th>F_ucl（上限）</th><th>p=25% 反演过程</th></tr>
   </thead>
   <tbody>
-    <tr><td class="tw">1</td><td>0.08</td><td>0.02</td><td>0.22</td></tr>
-    <tr><td class="tw">2</td><td>0.15</td><td>0.06</td><td>0.34</td></tr>
-    <tr><td class="tw">3</td><td>0.21</td><td>0.10</td><td>0.41</td></tr>
-    <tr><td class="tw">4</td><td>0.27</td><td>0.14</td><td>0.48</td></tr>
-    <tr><td class="tw">5</td><td>0.32</td><td>0.18</td><td>0.55</td></tr>
-    <tr><td class="tw">6</td><td>0.36</td><td>0.21</td><td>0.60</td></tr>
-    <tr><td class="tw">7</td><td>0.39</td><td>0.24</td><td>0.64</td></tr>
-    <tr><td class="tw">8</td><td>0.41</td><td>0.26</td><td>0.67</td></tr>
+    <tr><td class="tw">1</td><td>0.08</td><td>0.02</td><td>0.22</td><td class="tw">—</td></tr>
+    <tr><td class="tw">2</td><td>0.15</td><td>0.06</td><td><b>0.34</b></td><td class="tw"><b>qL = 2</b>：U(2)=0.34 首次 ≥ 0.25</td></tr>
+    <tr><td class="tw">3</td><td>0.21</td><td>0.10</td><td>0.41</td><td class="tw">F(3)=0.21 &lt; 0.25（尚未达到）</td></tr>
+    <tr><td class="tw">4</td><td><b>0.27</b></td><td>0.14</td><td>0.48</td><td class="tw"><b>q̂ = 4</b>：F(4)=0.27 首次 ≥ 0.25</td></tr>
+    <tr><td class="tw">5</td><td>0.32</td><td>0.18</td><td>0.55</td><td class="tw">—</td></tr>
+    <tr><td class="tw">6</td><td>0.36</td><td>0.21</td><td>0.60</td><td class="tw">—</td></tr>
+    <tr><td class="tw">7</td><td>0.39</td><td>0.24</td><td>0.64</td><td class="tw">L(7)=0.24 &lt; 0.25（尚未达到）</td></tr>
+    <tr><td class="tw">8</td><td>0.41</td><td><b>0.26</b></td><td>0.67</td><td class="tw"><b>qU = 8</b>：L(8)=0.26 首次 ≥ 0.25</td></tr>
   </tbody>
 </table>
 
