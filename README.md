@@ -13,7 +13,13 @@ Cumulative Incidence Function × Kaplan–Meier — 竞争风险下 95% 置信�
 - CIF 分位数为何在 SAS 中没有现成输出，以及反演实现与判据
 - 版本对齐：SAS 9.4M7（TS1M7）/ SAS/STAT 15.2
 - 可直接落地的统计分析代码（只含统计分析部分，不含报表宏与输出层逻辑）
+- 第 6.1 节附可运行 worked example：以 CIF 数据集列表为输入做反演（见 `cif_inversion_example.sas`）
 - 31 条参考文献，分三组：SAS 官方文档 / 方法学 / 临床应用
+
+## 附带的 SAS 文件
+
+- `cif_inversion_example.sas` —— 第 6.1 节的可运行 worked example：自包含、可手算核对，从一份固定 CIF 数据集出发走完整条反演链路（ASCII 英文注释，服务器可直接提交）
+- `cif_km_quantile_demo.sas` —— 生产程序对照：KM 分位数 vs CIF 反演分位数，同一份数据三条曲线并排 + 与 SAS 自带 `Quartiles` 表交叉验证
 
 ## 在线阅读
 

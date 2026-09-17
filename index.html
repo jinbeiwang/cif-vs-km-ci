@@ -996,6 +996,165 @@ data _null_;
     if cif ne 0 then put 'WARNING: [QC] CIF(0) ne 0, cif=' cif;
 run;</code></pre>
 
+<h3>6.1 可运行的 worked example：以 CIF 数据集列表为输入做反演</h3>
+
+<p class="lead">上面的块 4 是生产代码，输入是整个分析集、需先跑 <code>PROC LIFETEST</code> 生成阶梯函数。这里再给一个<b>自包含、可手算核对</b>的独立示例：直接从一个<b>已经算好的 CIF 数据集</b>（即 <code>OUTCIF=</code> 归一化后的形态——四列 <code>time / F / F_lcl / F_ucl</code>）出发，走完整条反演链路。它能单独提交、单独验证，用来向审阅者逐位证明「反演」这一步做了什么，也可作为新统计程序员的上手样板。完整文件见 <code>cif_inversion_example.sas</code>。</p>
+
+<h4>输入：一份固定的 CIF 阶梯数据集</h4>
+
+<p>下面 8 行就是 <code>OUTCIF=</code> 等价形态（列名已归一化：<code>F</code> 即 <code>CIF</code>、<code>F_lcl</code> 即 <code>CIF_LCL</code>、<code>F_ucl</code> 即 <code>CIF_UCL</code>）。时间单位取「月」便于读数。注意三条序列都<b>非降</b>，这是反演成立的前提；首行 t=0 的缺失 CIF 行已在上游剔除。</p>
+
+<table>
+  <caption><b>表 8</b>　反演示例的输入 CIF 阶梯函数（单组 <code>Demo</code>，时间单位：月）</caption>
+  <thead>
+    <tr><th>time</th><th>F（CIF）</th><th>F_lcl（下限）</th><th>F_ucl（上限）</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="tw">1</td><td>0.08</td><td>0.02</td><td>0.22</td></tr>
+    <tr><td class="tw">2</td><td>0.15</td><td>0.06</td><td>0.34</td></tr>
+    <tr><td class="tw">3</td><td>0.21</td><td>0.10</td><td>0.41</td></tr>
+    <tr><td class="tw">4</td><td>0.27</td><td>0.14</td><td>0.48</td></tr>
+    <tr><td class="tw">5</td><td>0.32</td><td>0.18</td><td>0.55</td></tr>
+    <tr><td class="tw">6</td><td>0.36</td><td>0.21</td><td>0.60</td></tr>
+    <tr><td class="tw">7</td><td>0.39</td><td>0.24</td><td>0.64</td></tr>
+    <tr><td class="tw">8</td><td>0.41</td><td>0.26</td><td>0.67</td></tr>
+  </tbody>
+</table>
+
+<h4>反演三式</h4>
+
+<p>对<b>非降</b>的 F，三条曲线的「第一次达到 p 的时点」就是反演结果；方向与生存函数分支相反（F 递增，故下界由置信<b>上限</b>驱动）：</p>
+
+<div class="key">
+  <b>定义。</b><code>q_hat = inf{ t : F(t)     ≥ p }</code>　（点估计）<br>
+  <code>q_lcl = inf{ t : F_UCL(t) ≥ p }</code>　（下界，由置信上限先到 p）<br>
+  <code>q_ucl = inf{ t : F_LCL(t) ≥ p }</code>　（上界，由置信下限先到 p）<br>
+  自检恒等式：<code>q_lcl ≤ q_hat ≤ q_ucl</code>（三端都估出时必成立）。
+</div>
+
+<p>因为三条曲线都是<b>非降阶梯函数</b>，每个 <code>inf{ t : 曲线 ≥ p }</code> 都退化为「从上往下扫，取第一次满足条件的行」——<b>无需求根、无需插值</b>。这正是 SAS 自带的 KM <code>Quartiles</code> 表（Brookmeyer–Crowley 反演）同一套机制，只是这里把「单组、固定 3 分位」平铺成能逐行读的 data step。</p>
+
+<h4>完整 SAS 程序（自包含、可直接提交）</h4>
+
+<div class="codelabel">块 6 · CIF 反演 worked example（ASCII 英文注释，服务器安全）</div>
+<pre><code>/*=======================================================================
+  CIF PERCENTILE 95% CI BY INVERTING THE CIF CONFIDENCE LIMITS
+  Self-contained, hand-checkable example. Input = a fixed CIF dataset
+  (time / F / F_lcl / F_ucl), the normalised form of OUTCIF=.
+=======================================================================*/
+options nodate nonumber linesize=160 formdlim='-';
+
+/*==== 1. INPUT: fixed CIF step function (single group "Demo") ==========*/
+data cif_demo;
+  input time F F_lcl F_ucl;
+  length pop $8;
+  pop = 'Demo';
+  datalines;
+1.0  0.08  0.02  0.22
+2.0  0.15  0.06  0.34
+3.0  0.21  0.10  0.41
+4.0  0.27  0.14  0.48
+5.0  0.32  0.18  0.55
+6.0  0.36  0.21  0.60
+7.0  0.39  0.24  0.64
+8.0  0.41  0.26  0.67
+;
+run;
+
+/*==== 2. THE INVERSION (non-decreasing F) ==============================*/
+%let pslist = 0.25,0.50,0.75;
+%let nq     = 3;
+
+data cif_inverted;
+  set cif_demo;
+  by pop;
+
+  array pctl[&amp;nq.] _temporary_ (&amp;pslist.);
+  array tq[&amp;nq.]   _temporary_;   /* q_hat : first t with F     &gt;= p */
+  array tl[&amp;nq.]   _temporary_;   /* q_lcl : first t with F_ucl &gt;= p */
+  array tu[&amp;nq.]   _temporary_;   /* q_ucl : first t with F_lcl &gt;= p */
+  array tp[&amp;nq.]   _temporary_;   /* time just before the crossing   */
+  array lv[&amp;nq.]   _temporary_;   /* F(q_hat), the level at crossing */
+
+  retain plateau plateau_lcl plateau_ucl maxtime;
+
+  if first.pop then do;
+    do i = 1 to &amp;nq.;
+      tq[i] = .; tl[i] = .; tu[i] = .; tp[i] = .; lv[i] = .;
+    end;
+    plateau = .; plateau_lcl = .; plateau_ucl = .; maxtime = .;
+  end;
+
+  maxtime     = max(maxtime,     time);
+  plateau     = max(plateau,     F);
+  plateau_lcl = max(plateau_lcl, F_lcl);
+  plateau_ucl = max(plateau_ucl, F_ucl);
+
+  do i = 1 to &amp;nq.;
+    if tq[i] = . then do;
+      if F &gt;= pctl[i] then do; tq[i] = time; lv[i] = F; end;
+      else tp[i] = time;               /* still below p -- remember  */
+    end;
+    if tl[i] = . and F_ucl &gt;= pctl[i] then tl[i] = time;
+    if tu[i] = . and F_lcl &gt;= pctl[i] then tu[i] = time;
+  end;
+
+  if last.pop then do i = 1 to &amp;nq.;
+    percentile = pctl[i];
+    q_hat      = tq[i];
+    q_lcl      = tl[i];
+    q_ucl      = tu[i];
+    q_prev     = tp[i];
+    F_at_q     = lv[i];
+
+    /* check 1: when all three exist, q_lcl &lt;= q_hat &lt;= q_ucl */
+    chk_order = .;
+    if n(q_hat, q_lcl, q_ucl) = 3 then chk_order = (q_lcl &lt;= q_hat &lt;= q_ucl);
+
+    /* check 2: level at the crossing must be &gt;= p (right-continuity) */
+    chk_hit = .;
+    if F_at_q ne . then chk_hit = (F_at_q &gt;= percentile);
+
+    output;
+  end;
+
+  keep pop percentile q_hat q_lcl q_ucl q_prev F_at_q
+       plateau plateau_lcl plateau_ucl maxtime chk_order chk_hit;
+  format percentile 4.2 F_at_q 5.3;
+run;
+
+/*==== 3. RESULTS =======================================================*/
+title "C. Percentile inversion result (months)";
+proc print data=cif_inverted noobs label;
+  var pop percentile q_hat q_lcl q_ucl q_prev F_at_q
+      plateau plateau_lcl plateau_ucl maxtime chk_order chk_hit;
+run;
+title;</code></pre>
+
+<h4>手算核对与最终输出</h4>
+
+<p>以 <code>p = 0.25</code> 为例，逐行扫：CIF 在 t=4 才首次 ≥ 0.25（<code>F(4)=0.27</code>）→ <code>q_hat=4</code>；置信上限早在 t=2 就 ≥ 0.25（<code>F_ucl(2)=0.34</code>）→ <code>q_lcl=2</code>；置信下限要熬到 t=8 才 ≥ 0.25（<code>F_lcl(8)=0.26</code>）→ <code>q_ucl=8</code>。三端 <code>2 ≤ 4 ≤ 8</code> 正是「F 递增时置信限换边」的直观体现。完整三档结果如下（已用独立 Python 实现逐位复核，与 SAS 输出一致）：</p>
+
+<table>
+  <caption><b>表 9</b>　反演最终结果（时间单位：月）。<code>NE</code> = not estimable（平台值未达 p）</caption>
+  <thead>
+    <tr><th>p</th><th>q_hat</th><th>q_lcl</th><th>q_ucl</th><th>q_prev</th><th>F(q_hat)</th><th>chk_order</th><th>chk_hit</th><th>说明</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="tw">0.25</td><td><b>4</b></td><td><b>2</b></td><td><b>8</b></td><td>3</td><td>0.27</td><td>1（通过）</td><td>1（通过）</td><td>2 ≤ 4 ≤ 8，完整区间</td></tr>
+    <tr><td class="tw">0.50</td><td><b>NE</b></td><td><b>5</b></td><td><b>NE</b></td><td>8</td><td>—</td><td>—</td><td>—</td><td>F 平台 0.41 &lt; 0.50，点估计与上界不可估</td></tr>
+    <tr><td class="tw">0.75</td><td>NE</td><td>NE</td><td>NE</td><td>8</td><td>—</td><td>—</td><td>—</td><td>三平台值 F=0.41 / F_lcl=0.26 / F_ucl=0.67 均 &lt; 0.75</td></tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  <b>可估性判定。</b>点估计 <code>q_hat</code> 缺失 = CIF 平台值（<code>plateau</code>）未达 p；下界 <code>q_lcl</code> 缺失 = <code>F_ucl</code> 平台值（<code>plateau_ucl</code>）未达 p；上界 <code>q_ucl</code> 缺失 = <code>F_lcl</code> 平台值（<code>plateau_lcl</code>）未达 p。Shell 该格报 <code>NE</code>，并在脚注给出对应平台值与最大随访时间（<code>maxtime</code>），供审阅者判断「不存在」而非「未算出」。
+</div>
+
+<div class="ok">
+  <b>与生产代码的关系。</b>本节的 data step <code>cif_inverted</code> 就是块 4 里 <code>quant</code> 的「单组、固定 3 分位」平铺版，两者逻辑一一对应（retain 临时数组 + <code>by</code> 重置 + 从上往下扫第一次满足条件）；输入数据集 <code>cif_demo</code> 对应 <code>OUTCIF=</code> 归一化后的四列。完整、可独立提交的文件见 <code>cif_inversion_example.sas</code>，其注释含与生产程序 <code>cif_km_quantile_demo.sas</code> 的逐行映射说明。
+</div>
+
 <h2><span class="n">7</span>对 SAP 第 5.10.1 节的建议补充文字</h2>
 
 <p class="lead">以下文字可直接插入 SAP 5.10.1 节主分析段落之后，用于填补 CIF 分支的 CI 方法空白。写法上与 SAP 现有风格一致，仅补充方法、方差与「不可估」规则三项，不改变原有的估计目标与终点定义。</p>
